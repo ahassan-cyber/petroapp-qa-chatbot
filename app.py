@@ -152,7 +152,7 @@ _LOGO_PNG_B64 = _load_logo_b64("assets/logo.png")
 
 if _LOGO_PNG_B64:
     LOGO_LG = _png_img(_LOGO_PNG_B64, 80, 80)
-    LOGO_SM = _png_img(_LOGO_PNG_B64, 40, 40, "filter:brightness(0) invert(1);")
+    LOGO_SM = _png_img(_LOGO_PNG_B64, 40, 40)
 else:
     LOGO_LG = _svg_fallback_img("#2080E5", 80, 80)
     LOGO_SM = _svg_fallback_img("white",   40, 40)
@@ -175,7 +175,7 @@ st.markdown("""
 .login-restricted { font-size:12px; color:#94a3b8; margin-bottom:28px; text-align:center; }
 
 .petroapp-header { background:linear-gradient(90deg,#1B4FD8,#2080E5,#3b82f6); padding:14px 24px; border-radius:14px; margin-bottom:20px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 20px rgba(32,128,229,.25); }
-.header-logo { width:48px; height:48px; background:rgba(255,255,255,.15); border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.header-logo { width:52px; height:52px; background:white; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:4px; overflow:hidden; }
 .header-title h1 { color:white; font-size:20px; margin:0; font-weight:700; }
 .header-title p  { color:rgba(255,255,255,.75); font-size:12px; margin:2px 0 0 0; }
 
