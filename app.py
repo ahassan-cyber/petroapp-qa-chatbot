@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import os
 import glob
+import base64
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 ADMIN_EMAIL    = "a.hassan@petroapp.com"
@@ -36,24 +37,28 @@ except Exception:
     SMTP_SERVER = "smtp.office365.com"
     SMTP_PORT   = 587
 
-# ── PetroApp P Logo SVG (matches brand) ──────────────────────────────────────
-PETROAPP_LOGO_SVG = """
-<svg width="80" height="80" viewBox="0 0 68 90" xmlns="http://www.w3.org/2000/svg">
-  <rect x="20" y="5" width="17" height="80" fill="#1B6FE8"/>
-  <path fill="#1B6FE8" d="M 37,5 Q 66,5 66,30 Q 66,55 37,55 L 20,55 L 20,5 Z"/>
-  <rect x="3" y="36" width="17" height="20" fill="#1B6FE8"/>
-  <path fill="white" d="M 37,18 Q 51,18 51,30 Q 51,42 37,42 L 3,42 L 3,36 L 20,36 L 20,18 Z"/>
-</svg>
-"""
+# ── PetroApp P Logo (SVG encoded as base64 for reliable rendering) ───────────
+_LOGO_SVG_BLUE = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
+<rect x="30" y="0" width="20" height="140" fill="#2080E5"/>
+<path fill="#2080E5" d="M 50,0 L 60,0 A 35,35 0 0 1 60,70 L 30,70 L 30,0 Z"/>
+<rect x="5" y="52" width="25" height="22" fill="#2080E5"/>
+<path fill="white" d="M 50,20 L 55,20 A 15,15 0 0 1 55,50 L 50,50 Z"/>
+</svg>'''
 
-PETROAPP_LOGO_SVG_SMALL = """
-<svg width="44" height="44" viewBox="0 0 68 90" xmlns="http://www.w3.org/2000/svg">
-  <rect x="20" y="5" width="17" height="80" fill="white"/>
-  <path fill="white" d="M 37,5 Q 66,5 66,30 Q 66,55 37,55 L 20,55 L 20,5 Z"/>
-  <rect x="3" y="36" width="17" height="20" fill="white"/>
-  <path fill="#1B6FE8" d="M 37,18 Q 51,18 51,30 Q 51,42 37,42 L 3,42 L 3,36 L 20,36 L 20,18 Z"/>
-</svg>
-"""
+_LOGO_SVG_WHITE = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
+<rect x="30" y="0" width="20" height="140" fill="white"/>
+<path fill="white" d="M 50,0 L 60,0 A 35,35 0 0 1 60,70 L 30,70 L 30,0 Z"/>
+<rect x="5" y="52" width="25" height="22" fill="white"/>
+<path fill="#2080E5" d="M 50,20 L 55,20 A 15,15 0 0 1 55,50 L 50,50 Z"/>
+</svg>'''
+
+def _svg_img(svg_str, width=80, height=80):
+    """Convert SVG string to a base64 <img> tag for reliable rendering."""
+    b64 = base64.b64encode(svg_str.encode()).decode()
+    return f'<img src="data:image/svg+xml;base64,{b64}" width="{width}" height="{height}" style="display:block;"/>'
+
+LOGO_IMG       = _svg_img(_LOGO_SVG_BLUE, 80, 80)
+LOGO_IMG_SMALL = _svg_img(_LOGO_SVG_WHITE, 40, 40)
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -69,9 +74,9 @@ st.markdown("""
     to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes glowPulse {
-    0%   { box-shadow: 0 0 0 0 rgba(27,111,232,0.30); }
-    50%  { box-shadow: 0 0 0 18px rgba(27,111,232,0); }
-    100% { box-shadow: 0 0 0 0 rgba(27,111,232,0); }
+    0%   { box-shadow: 0 0 0 0 rgba(32,128,229,0.30); }
+    50%  { box-shadow: 0 0 0 18px rgba(32,128,229,0); }
+    100% { box-shadow: 0 0 0 0 rgba(32,128,229,0); }
 }
 @keyframes floatLogo {
     0%   { transform: translateY(0px); }
@@ -87,31 +92,28 @@ st.markdown("""
 }
 .petro-logo-wrap {
     animation: glowPulse 2.5s infinite, floatLogo 3s ease-in-out infinite;
-    border-radius: 16px; display: inline-block; margin-bottom: 20px;
+    border-radius: 16px; display: inline-flex;
+    align-items: center; justify-content: center;
+    margin-bottom: 20px;
 }
 .login-title {
     font-size: 28px; font-weight: 700; color: #1e3a8a;
-    margin: 4px 0; text-align: center;
+    margin: 8px 0 4px 0; text-align: center;
 }
 .login-sub {
-    font-size: 14px; color: #1B6FE8; font-weight: 500;
+    font-size: 14px; color: #2080E5; font-weight: 500;
     margin-bottom: 4px; text-align: center;
 }
 .login-restricted {
     font-size: 12px; color: #94a3b8; margin-bottom: 28px; text-align: center;
 }
-.login-card {
-    background: white; border-radius: 20px; padding: 36px 40px;
-    box-shadow: 0 8px 40px rgba(27,111,232,0.10);
-    width: 100%; max-width: 440px;
-}
 
 /* ── Header ── */
 .petroapp-header {
-    background: linear-gradient(90deg, #1B4FD8, #1B6FE8, #3b82f6);
+    background: linear-gradient(90deg, #1B4FD8, #2080E5, #3b82f6);
     padding: 14px 24px; border-radius: 14px; margin-bottom: 20px;
     display: flex; align-items: center; gap: 14px;
-    box-shadow: 0 4px 20px rgba(27,111,232,0.25);
+    box-shadow: 0 4px 20px rgba(32,128,229,0.25);
 }
 .header-logo {
     width: 48px; height: 48px;
@@ -123,25 +125,9 @@ st.markdown("""
 .header-title h1 { color: white; font-size: 20px; margin: 0; font-weight: 700; }
 .header-title p  { color: rgba(255,255,255,0.75); font-size: 12px; margin: 2px 0 0 0; }
 
-/* ── Quick FAQ buttons ── */
-.stButton > button[kind="secondary"] {
-    background: white !important;
-    border: 1.5px solid #dbeafe !important;
-    color: #1B6FE8 !important;
-    border-radius: 20px !important;
-    font-size: 12px !important;
-    padding: 6px 14px !important;
-    box-shadow: 0 1px 4px rgba(27,111,232,0.07) !important;
-}
-.stButton > button[kind="secondary"]:hover {
-    background: #1B6FE8 !important;
-    color: white !important;
-    border-color: #1B6FE8 !important;
-}
-
 /* ── Admin badge ── */
 .admin-badge {
-    background: linear-gradient(90deg, #1B6FE8, #1B4FD8);
+    background: linear-gradient(90deg, #2080E5, #1B4FD8);
     color: white; border-radius: 20px; padding: 2px 12px;
     font-size: 11px; font-weight: 600; display: inline-block;
     margin-left: 8px; vertical-align: middle;
@@ -154,24 +140,22 @@ st.markdown("""
 }
 
 /* ── Primary buttons ── */
-.stButton > button[kind="primary"],
-.stButton > button:not([kind]) {
-    background-color: #1B6FE8 !important; color: white !important;
+.stButton > button {
+    background-color: #2080E5 !important; color: white !important;
     border: none !important; border-radius: 10px !important;
     font-weight: 600 !important;
 }
-.stButton > button[kind="primary"]:hover,
-.stButton > button:not([kind]):hover {
+.stButton > button:hover {
     background-color: #1B4FD8 !important;
 }
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab"] {
     background: #e8f0fe; border-radius: 8px 8px 0 0;
-    color: #1B6FE8; font-weight: 600;
+    color: #2080E5; font-weight: 600;
 }
 .stTabs [aria-selected="true"] {
-    background: #1B6FE8 !important; color: white !important;
+    background: #2080E5 !important; color: white !important;
 }
 
 /* ── Sidebar ── */
@@ -263,8 +247,8 @@ def send_request_email(requester_name, requester_email, request_text):
     now  = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = f"""
     <html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
-        <div style="background:linear-gradient(90deg,#1B4FD8,#1B6FE8);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
-            <h2 style="color:white;margin:0;">🔔 New Authority Request — PetroApp</h2>
+        <div style="background:linear-gradient(90deg,#1B4FD8,#2080E5);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
+            <h2 style="color:white;margin:0;">New Authority Request — PetroApp</h2>
         </div>
         <table style="border-collapse:collapse;width:100%;max-width:620px;">
             <tr><td style="padding:10px;background:#f0f5ff;font-weight:bold;width:170px;border:1px solid #ddd;">Name</td>
@@ -283,17 +267,17 @@ def send_request_email(requester_name, requester_email, request_text):
     if ok:
         confirm_html = f"""
         <html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
-            <div style="background:linear-gradient(90deg,#1B4FD8,#1B6FE8);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
-                <h2 style="color:white;margin:0;">✅ Request Submitted</h2>
+            <div style="background:linear-gradient(90deg,#1B4FD8,#2080E5);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
+                <h2 style="color:white;margin:0;">Request Submitted</h2>
             </div>
             <p>Dear <strong>{requester_name}</strong>,</p>
-            <p>Your request has been submitted to the QA &amp; Governance team.</p>
-            <blockquote style="border-left:4px solid #1B6FE8;padding:10px 16px;background:#f0f5ff;border-radius:0 8px 8px 0;">
+            <p>Your request has been submitted to the QA and Governance team.</p>
+            <blockquote style="border-left:4px solid #2080E5;padding:10px 16px;background:#f0f5ff;border-radius:0 8px 8px 0;">
                 {request_text}
             </blockquote>
             <p style="color:#888;font-size:12px;margin-top:20px;">PetroApp — Governance Tool</p>
         </body></html>"""
-        send_email_generic("✅ Your Authority Request Has Been Submitted", confirm_html, [requester_email])
+        send_email_generic("Your Authority Request Has Been Submitted", confirm_html, [requester_email])
     return ok, msg
 
 
@@ -302,7 +286,7 @@ def send_error_report(user_email, error_text):
     html = f"""
     <html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
         <div style="background:#dc2626;padding:18px 28px;border-radius:12px;margin-bottom:20px;">
-            <h2 style="color:white;margin:0;">🚨 Chatbot Error Report</h2>
+            <h2 style="color:white;margin:0;">Chatbot Error Report</h2>
         </div>
         <table style="border-collapse:collapse;width:100%;max-width:620px;">
             <tr><td style="padding:10px;background:#fef2f2;font-weight:bold;width:130px;border:1px solid #ddd;">User</td>
@@ -314,17 +298,24 @@ def send_error_report(user_email, error_text):
         </table>
         <p style="color:#888;font-size:12px;margin-top:20px;">PetroApp — Governance Tool</p>
     </body></html>"""
-    return send_email_generic(f"🚨 Chatbot Error — {now}", html, [ADMIN_EMAIL])
+    return send_email_generic(f"Chatbot Error — {now}", html, [ADMIN_EMAIL])
 
 
 def call_claude(messages_history, document_context):
     """Call Claude API and return the answer text, or raise on error."""
     system_prompt = f"""You are a helpful assistant for the QA and Governance department at PetroApp.
-Answer questions strictly based on the documents below.
-If the answer is not found, say: "I could not find this information in the provided documents."
-Be clear, concise, and professional. Always end EVERY response with:
+Answer questions strictly based on the documents provided below.
+If the answer is not found in the documents, say: "I could not find this information in the provided documents."
+
+IMPORTANT RULES:
+- Be clear, concise, and professional.
+- Do NOT include BOD (Board of Directors) level authorities in your answers unless the user specifically asks about BOD.
+- Focus on operational and management level authorities only.
+- Answer in the same language the user asks in (English or Arabic).
+
+Always end EVERY response with:
 ---
-📞 **For any unclear authorities or further assistance, please contact the QA & Governance team directly.**
+For any unclear authorities or further assistance, please contact the QA and Governance team directly.
 
 --- DOCUMENTS ---
 {document_context}
@@ -346,16 +337,16 @@ Be clear, concise, and professional. Always end EVERY response with:
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown(f"""
-        <div class="login-wrapper">
-            <div class="petro-logo-wrap">
-                {PETROAPP_LOGO_SVG}
-            </div>
-            <div class="login-title">QA &amp; Governance Chatbot</div>
-            <div class="login-sub">PetroApp — Governance Tool</div>
-            <div class="login-restricted">🔒 Access restricted to PetroApp employees only</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Logo (rendered as base64 img to avoid HTML parsing issues)
+        st.markdown(
+            f'<div class="login-wrapper">'
+            f'<div class="petro-logo-wrap">{LOGO_IMG}</div>'
+            f'<div class="login-title">QA &amp; Governance Chatbot</div>'
+            f'<div class="login-sub">PetroApp — Governance Tool</div>'
+            f'<div class="login-restricted">Access restricted to PetroApp employees only</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
         with st.form("login_form"):
             name  = st.text_input("Full Name", placeholder="Ahmed Hassan")
@@ -366,7 +357,7 @@ if not st.session_state.authenticated:
             if not name.strip() or not email.strip():
                 st.error("Please enter your name and email.")
             elif not email.strip().lower().endswith(f"@{ALLOWED_DOMAIN}"):
-                st.error(f"❌ Access denied. Only @{ALLOWED_DOMAIN} emails are allowed.")
+                st.error(f"Access denied. Only @{ALLOWED_DOMAIN} emails are allowed.")
             else:
                 st.session_state.authenticated = True
                 st.session_state.user_email    = email.strip().lower()
@@ -389,8 +380,8 @@ with st.sidebar:
     st.caption(st.session_state.user_email)
 
     if st.button("🚪 Sign Out", use_container_width=True):
-        for k in ["authenticated","user_email","user_name","messages","uploaded_docs_context","last_error","pending_question"]:
-            st.session_state[k] = False if k=="authenticated" else "" if k in ["user_email","user_name","uploaded_docs_context"] else [] if k=="messages" else None
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
         st.rerun()
 
     st.markdown("---")
@@ -431,15 +422,15 @@ with st.sidebar:
     st.caption("🔒 PetroApp — Governance Tool")
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown(f"""
-<div class="petroapp-header">
-    <div class="header-logo">{PETROAPP_LOGO_SVG_SMALL}</div>
-    <div class="header-title">
-        <h1>QA &amp; Governance Chatbot</h1>
-        <p>Welcome, {st.session_state.user_name} &nbsp;·&nbsp; {st.session_state.user_email}</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    f'<div class="petroapp-header">'
+    f'<div class="header-logo">{LOGO_IMG_SMALL}</div>'
+    f'<div class="header-title">'
+    f'<h1>QA &amp; Governance Chatbot</h1>'
+    f'<p>Welcome, {st.session_state.user_name} · {st.session_state.user_email}</p>'
+    f'</div></div>',
+    unsafe_allow_html=True
+)
 
 # ── Combine document context ──────────────────────────────────────────────────
 document_context = repo_doc_context + st.session_state.uploaded_docs_context
@@ -464,11 +455,11 @@ with tab1:
         # ── Quick FAQ buttons ──
         st.markdown("**💡 Quick Questions:**")
         faqs = [
-            "What is the approval authority for contracts?",
-            "What are the steps for salary transfer?",
-            "Who approves purchase orders?",
-            "What is the policy for travel expenses?",
-            "What is the DOA for hiring?"
+            "What is the DOA for purchase orders?",
+            "What are the approval limits for contracts?",
+            "Who can approve travel expenses?",
+            "What is the process for salary changes?",
+            "What is the DOA for new hiring?"
         ]
         cols = st.columns(len(faqs))
         for i, faq in enumerate(faqs):
@@ -487,11 +478,10 @@ with tab1:
         # ── Chat input ──
         user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
 
-        # ── Resolve question to process (typed OR from FAQ button) ──
+        # ── Resolve question (typed OR from FAQ button) ──
         question_to_process = user_input or st.session_state.get("pending_question")
 
         if question_to_process:
-            # Clear pending if it came from FAQ
             if st.session_state.get("pending_question"):
                 st.session_state.pending_question = None
 
@@ -514,17 +504,18 @@ with tab1:
                         except Exception as e:
                             err_msg = str(e)
                             st.session_state.last_error = err_msg
-                            st.markdown(f"""
-                            <div class="error-card">
-                                <strong>⚠️ Something went wrong</strong><br>
-                                <small style="color:#666;">{err_msg}</small>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(
+                                f'<div class="error-card">'
+                                f'<strong>⚠️ Something went wrong</strong><br>'
+                                f'<small style="color:#666;">{err_msg}</small>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
 
         # ── Report Error button ──
         if st.session_state.last_error:
             st.markdown("---")
-            if st.button("🚨 Report this error to Admin", type="secondary"):
+            if st.button("🚨 Report this error to Admin"):
                 if SMTP_EMAIL and SMTP_PASSWORD:
                     ok, _ = send_error_report(st.session_state.user_email, st.session_state.last_error)
                     if ok:
@@ -540,7 +531,7 @@ with tab1:
 # ════════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.subheader("📝 Request a New Authority")
-    st.write("Submit a request to add or modify an authority in the DOA. The QA & Governance team will review and respond.")
+    st.write("Submit a request to add or modify an authority in the DOA. The QA and Governance team will review and respond.")
 
     with st.form("authority_request_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -598,7 +589,7 @@ if is_admin and tab3:
             **How to add permanent documents:**
             1. Go to your GitHub repository
             2. Open the `documents` folder
-            3. Click "Add file" → "Upload files"
+            3. Click "Add file" then "Upload files"
             4. Upload your PDF, DOCX, or XLSX files
             5. Documents load automatically for all users
 
@@ -618,3 +609,4 @@ if is_admin and tab3:
                     st.success("✅ Sent!") if ok else st.error("Failed to send.")
                 else:
                     st.error("Please fill all fields.")
+                    
