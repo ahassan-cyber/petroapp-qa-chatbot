@@ -21,7 +21,7 @@ DOCS_FOLDER    = "documents"
 FAQ_COUNTS_FILE = "faq_counts.json"
 
 DEFAULT_FAQS = [
-    "What is the DOA for purchase orders?",
+    "What is the process for business plan approval?",
     "What are the approval limits for contracts?",
     "Who can approve travel expenses?",
     "What is the process for salary changes?",
@@ -333,9 +333,13 @@ STRICT RULES:
 2. When answering about tables (e.g., Develop / Endorse / Approve columns), list each column SEPARATELY and copy the exact names from the document. Do NOT mix values between columns.
 3. If a table has columns like [Decision | Develop | Endorse | Approve], make sure you read each row left to right and keep each column's value in the correct place.
 4. Do NOT include BOD (Board of Directors) level authorities unless the user explicitly asks about BOD.
-5. If the exact answer is not in the documents, say: "I could not find this information in the provided documents."
-6. Answer in the same language the user writes in (Arabic or English).
-7. Always end every response with this line:
+5. ALWAYS try your best to answer from the documents:
+   - First: look for an exact match to the question.
+   - If no exact match: find the NEAREST or MOST RELATED topic in the documents and share it, clearly stating it is the closest match found.
+   - Only if truly nothing related exists at all: say "I could not find this information in the provided documents."
+6. Never leave the user with no information — always share the nearest relevant content you can find.
+7. Answer in the same language the user writes in (Arabic or English).
+8. Always end every response with this line:
 ---
 For further assistance, please contact the QA and Governance team directly.
 
@@ -495,30 +499,15 @@ with tab1:
                     user_q = ""
                     if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
                         user_q = st.session_state.messages[idx-1]["content"]
-                    st.markdown(
-                        '<div class="notfound-actions">ℹ️ <strong>This topic is not in our current documents.</strong> You can:</div>',
-                        unsafe_allow_html=True
-                    )
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("📩 Report to QA Team", key=f"report_qa_{idx}"):
-                            if SMTP_EMAIL and SMTP_PASSWORD:
-                                ok, _ = send_qa_report_for_unanswered(
-                                    st.session_state.user_email,
-                                    st.session_state.user_name,
-                                    user_q
-                                )
-                                if ok:
-                                    st.success("✅ Reported to the QA team!")
-                                else:
-                                    st.error("Could not send. Contact a.hassan@petroapp.com")
-                            else:
-                                st.warning("Email not configured.")
-                    with c2:
-                        if st.button("📝 Submit a Request", key=f"submit_req_{idx}"):
-                            st.session_state.prefill_inquiry = user_q
-                            st.session_state.show_inquiry_form = True
-                            st.info("👉 Please click the **'📋 New Request / Inquiry'** tab above to submit your request.")
+                    if st.button("📋 Submit Request to Gov Team", key=f"submit_gov_{idx}"):
+                        st.session_state.prefill_inquiry = user_q
+                        if SMTP_EMAIL and SMTP_PASSWORD:
+                            send_qa_report_for_unanswered(
+                                st.session_state.user_email,
+                                st.session_state.user_name,
+                                user_q
+                            )
+                        st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled with your question.")
 
         # ── Chat input ──
         user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
@@ -547,28 +536,17 @@ with tab1:
                             st.session_state.messages.append({"role": "assistant", "content": answer})
                             st.session_state.last_error = None
 
-                            # Buttons if not found
+                            # Single button if not found
                             if is_not_found_answer(answer):
-                                st.markdown(
-                                    '<div class="notfound-actions">ℹ️ <strong>This topic is not in our current documents.</strong> You can:</div>',
-                                    unsafe_allow_html=True
-                                )
-                                c1, c2 = st.columns(2)
-                                with c1:
-                                    if st.button("📩 Report to QA Team", key="report_qa_new"):
-                                        if SMTP_EMAIL and SMTP_PASSWORD:
-                                            ok, _ = send_qa_report_for_unanswered(
-                                                st.session_state.user_email,
-                                                st.session_state.user_name,
-                                                question_to_process
-                                            )
-                                            st.success("✅ Reported!") if ok else st.error("Could not send.")
-                                        else:
-                                            st.warning("Email not configured.")
-                                with c2:
-                                    if st.button("📝 Submit a Request", key="submit_req_new"):
-                                        st.session_state.prefill_inquiry = question_to_process
-                                        st.info("👉 Click the **'📋 New Request / Inquiry'** tab above.")
+                                if st.button("📋 Submit Request to Gov Team", key="submit_gov_new"):
+                                    st.session_state.prefill_inquiry = question_to_process
+                                    if SMTP_EMAIL and SMTP_PASSWORD:
+                                        send_qa_report_for_unanswered(
+                                            st.session_state.user_email,
+                                            st.session_state.user_name,
+                                            question_to_process
+                                        )
+                                    st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled with your question.")
                         except Exception as e:
                             err_msg = str(e)
                             st.session_state.last_error = err_msg
@@ -686,4 +664,3 @@ if is_admin and tab3:
                     st.success("✅ Sent!") if ok else st.error("Failed.")
                 else:
                     st.error("Please fill all fields.")
-                    
