@@ -13,12 +13,17 @@ import base64
 import json
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-ADMIN_EMAIL    = "a.hassan@petroapp.com"
-ALLOWED_DOMAIN = "petroapp.com"
-TO_EMAIL       = "quality.assurance@petroapp.com"
-CC_EMAILS      = ["osama.adel@petroapp.com", "a.hassan@petroapp.com", "mohamed.yassin@petroapp.com"]
-DOCS_FOLDER    = "documents"
+ADMIN_EMAIL     = "a.hassan@petroapp.com"
+ALLOWED_DOMAIN  = "petroapp.com"
+TO_EMAIL        = "quality.assurance@petroapp.com"
+CC_EMAILS       = ["osama.adel@petroapp.com", "a.hassan@petroapp.com", "mohamed.yassin@petroapp.com"]
+DOCS_FOLDER     = "documents"
 FAQ_COUNTS_FILE = "faq_counts.json"
+
+# RAG Settings
+CHUNK_SIZE     = 700   # words per chunk
+CHUNK_OVERLAP  = 80    # word overlap between chunks
+TOP_K_CHUNKS   = 10    # how many chunks to send to Claude per question
 
 DEFAULT_FAQS = [
     "What is the process for business plan approval?",
@@ -29,51 +34,73 @@ DEFAULT_FAQS = [
 ]
 
 NOT_FOUND_PHRASES = [
-    # ── English ──────────────────────────────────────────────────────────────
-    "could not find this information",
-    "could not find",
-    "not found in the provided",
-    "not found in the document",
-    "not available in the document",
-    "no information about",
-    "no information on",
-    "cannot find",
-    "can't find",
-    "unable to find",
-    "not mentioned in",
-    "not covered in",
-    "does not contain information",
-    "there is no information",
-    "i don't have information",
-    "i do not have information",
-    "not included in",
-    "not in the documents",
-    "no relevant information",
-    "outside the scope",
-    "not address",
-    "not specify",
-    "does not specify",
-    "no details",
-    "no specific information",
-    # ── Arabic ───────────────────────────────────────────────────────────────
-    "لم أجد",
-    "لم يتم ذكر",
-    "لم أتمكن",
-    "لا تتوفر",
-    "لا يوجد",
-    "لا توجد",
-    "غير موجود",
-    "غير مذكور",
-    "غير متوفر",
-    "لا أملك معلومات",
-    "ليس في المستندات",
-    "لا يمكنني إيجاد",
-    "لا تحتوي",
-    "لم تتضمن",
-    "لم يرد",
-    "لم يُذكر",
-    "لا يتضمن",
+    "could not find this information", "could not find",
+    "not found in the provided", "not found in the document",
+    "not available in the document", "no information about",
+    "no information on", "cannot find", "can't find",
+    "unable to find", "not mentioned in", "not covered in",
+    "does not contain information", "there is no information",
+    "i don't have information", "i do not have information",
+    "not included in", "not in the documents", "no relevant information",
+    "outside the scope", "not address", "not specify",
+    "does not specify", "no details", "no specific information",
+    "لم أجد", "لم يتم ذكر", "لم أتمكن", "لا تتوفر", "لا يوجد",
+    "لا توجد", "غير موجود", "غير مذكور", "غير متوفر",
+    "لا أملك معلومات", "ليس في المستندات", "لا يمكنني إيجاد",
+    "لا تحتوي", "لم تتضمن", "لم يرد", "لم يُذكر", "لا يتضمن",
 ]
+
+# ── Category Keywords for auto-detect ─────────────────────────────────────────
+CATEGORY_KEYWORDS = {
+    "doa": [
+        "doa", "delegation", "authority", "authorities", "approve", "approval",
+        "signatory", "authorized", "matrix", "limit", "financial limit", "delegate",
+        "تفويض", "صلاحية", "صلاحيات", "موافقة", "اعتماد", "مصفوفة", "تفويضات",
+    ],
+    "hr": [
+        "hr", "human resources", "salary", "hiring", "hire", "employee",
+        "job offer", "probation", "termination", "bonus", "commission",
+        "recruitment", "staff", "personnel", "onboarding", "increment",
+        "موظف", "موظفين", "راتب", "توظيف", "مكافأة", "عمولة", "تعيين",
+    ],
+    "finance": [
+        "finance", "financial", "budget", "fp&a", "cost", "revenue",
+        "accounting", "invoice", "payment", "capex", "opex",
+        "تمويل", "مالية", "ميزانية", "محاسبة", "فاتورة",
+    ],
+    "sales": [
+        "sales", "commission", "discount", "fuel", "washing", "station",
+        "bonus scheme", "target", "incentive", "ksa", "egypt",
+        "مبيعات", "عمولة", "خصم", "حوافز", "وقود", "محطة",
+    ],
+    "it": [
+        "it", "tools", "software", "system", "infrastructure", "tool request",
+        "تقنية", "أنظمة", "برامج", "أدوات", "بنية تحتية",
+    ],
+    "operations": [
+        "operations", "station", "fuel station", "washing", "service", "field",
+        "عمليات", "محطة", "خدمات", "ميدان",
+    ],
+    "customer_experience": [
+        "customer", "experience", "cx", "complaint", "feedback", "support",
+        "عملاء", "تجربة العملاء", "شكاوى", "دعم",
+    ],
+}
+
+# Subfolder → which categories it belongs to
+SUBFOLDER_CATEGORY_MAP = {
+    "policies/doa":             ["doa"],
+    "policies/hr":              ["hr"],
+    "policies/sales":           ["sales"],
+    "policies/finance":         ["finance"],
+    "policies/it":              ["it"],
+    "policies/general":         ["hr", "finance", "doa"],
+    "sops/customer_experience": ["customer_experience"],
+    "sops/operations":          ["operations", "sales"],
+    "sops/sales":               ["sales"],
+    "sops/finance":             ["finance"],
+    "sops/it":                  ["it"],
+}
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -94,11 +121,7 @@ except Exception:
     SMTP_SERVER = "smtp.office365.com"
     SMTP_PORT   = 587
 
-# ── PetroApp P Logo SVG ───────────────────────────────────────────────────────
-# Built to match the exact PetroApp brand:
-# - Tall vertical stem
-# - Thick rounded bowl on the right (top half), small inner counter
-# - Square bracket extending LEFT from stem at bowl-bottom level
+# ── PetroApp Logo (base64 SVG) ────────────────────────────────────────────────
 _LOGO_BLUE = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
   <rect x="28" y="0" width="19" height="140" fill="#2080E5"/>
   <path fill="#2080E5" d="M 47,0 L 58,0 A 33,33 0 0 1 58,66 L 28,66 L 28,0 Z"/>
@@ -117,8 +140,8 @@ def _b64img(svg, w, h):
     b64 = base64.b64encode(svg.encode()).decode()
     return f'<img src="data:image/svg+xml;base64,{b64}" width="{w}" height="{h}" style="display:block;"/>'
 
-LOGO_LG    = _b64img(_LOGO_BLUE,  80, 80)
-LOGO_SM    = _b64img(_LOGO_WHITE, 40, 40)
+LOGO_LG = _b64img(_LOGO_BLUE,  80, 80)
+LOGO_SM = _b64img(_LOGO_WHITE, 40, 40)
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -144,7 +167,7 @@ st.markdown("""
 
 .admin-badge { background:linear-gradient(90deg,#2080E5,#1B4FD8); color:white; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:600; display:inline-block; margin-left:8px; vertical-align:middle; }
 .error-card { background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px 20px; margin-top:12px; }
-.notfound-actions { background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:14px 18px; margin-top:10px; }
+.chunk-info { background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:8px 12px; margin-top:6px; font-size:11px; color:#0369a1; }
 
 .stButton > button { background-color:#2080E5 !important; color:white !important; border:none !important; border-radius:10px !important; font-weight:600 !important; }
 .stButton > button:hover { background-color:#1B4FD8 !important; }
@@ -158,15 +181,14 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 # SESSION STATE INIT
 # ══════════════════════════════════════════════════════════════════════════════
 for key, val in {
-    "authenticated": False,
-    "user_email": "",
-    "user_name": "",
-    "messages": [],
-    "uploaded_docs_context": "",
-    "last_error": None,
-    "pending_question": None,
-    "prefill_inquiry": "",
-    "show_inquiry_form": False,
+    "authenticated":        False,
+    "user_email":           "",
+    "user_name":            "",
+    "messages":             [],
+    "last_error":           None,
+    "pending_question":     None,
+    "prefill_inquiry":      "",
+    "uploaded_chunks":      [],
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -207,10 +229,10 @@ def get_dynamic_faqs(n=5):
     return (top + needed)[:n]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HELPERS
+# DOCUMENT PROCESSING — CHUNKING RAG
 # ══════════════════════════════════════════════════════════════════════════════
 def extract_text(file, filename: str = "") -> str:
-    name = (filename or file.name).lower()
+    name = (filename or getattr(file, 'name', '')).lower()
     text = ""
     try:
         if name.endswith(".pdf"):
@@ -233,23 +255,137 @@ def extract_text(file, filename: str = "") -> str:
     return text.strip()
 
 
-def load_repo_documents() -> str:
-    context = ""
+def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list:
+    """Split text into overlapping word-based chunks."""
+    words = text.split()
+    if not words:
+        return []
+    chunks = []
+    i = 0
+    while i < len(words):
+        chunk = " ".join(words[i : i + chunk_size])
+        chunks.append(chunk)
+        i += chunk_size - overlap
+    return chunks
+
+
+@st.cache_data(show_spinner=False)
+def load_documents_chunked() -> list:
+    """
+    Load all documents from documents/ folder (flat or subfolders).
+    Returns list of chunk dicts: {source, subfolder, chunk_id, total_chunks, text}
+    """
+    all_chunks = []
     if not os.path.exists(DOCS_FOLDER):
-        return context
-    files = []
-    for p in ["*.pdf","*.docx","*.xlsx"]:
-        files.extend(glob.glob(os.path.join(DOCS_FOLDER, p)))
-    for fpath in files:
+        return all_chunks
+
+    # Find all files (recursive for subfolders + flat)
+    all_files = []
+    for ext in ["*.pdf", "*.docx", "*.xlsx"]:
+        all_files.extend(glob.glob(os.path.join(DOCS_FOLDER, "**", ext), recursive=True))
+    all_files = sorted(set(all_files))
+
+    for fpath in all_files:
         fname = os.path.basename(fpath)
+        rel_path  = os.path.relpath(fpath, DOCS_FOLDER)
+        subfolder = os.path.dirname(rel_path).replace("\\", "/")
+
         try:
             with open(fpath, "rb") as f:
-                context += f"\n\n=== Document: {fname} ===\n{extract_text(f, fname)}"
+                full_text = extract_text(f, fname)
+
+            if not full_text.strip():
+                continue
+
+            doc_chunks = chunk_text(full_text)
+            for i, chunk in enumerate(doc_chunks):
+                all_chunks.append({
+                    "source":       fname,
+                    "subfolder":    subfolder,
+                    "chunk_id":     i,
+                    "total_chunks": len(doc_chunks),
+                    "text":         chunk,
+                })
         except Exception as e:
-            context += f"\n\n=== Document: {fname} ===\n[Error: {e}]"
-    return context
+            all_chunks.append({
+                "source":       fname,
+                "subfolder":    subfolder,
+                "chunk_id":     0,
+                "total_chunks": 1,
+                "text":         f"[Error reading {fname}: {e}]",
+            })
+
+    return all_chunks
 
 
+def detect_category(question: str) -> str | None:
+    """Detect most likely category from question keywords."""
+    q_lower = question.lower()
+    scores = {cat: 0 for cat in CATEGORY_KEYWORDS}
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if kw in q_lower:
+                scores[cat] += 1
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else None
+
+
+def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUNKS) -> list:
+    """
+    Score each chunk by keyword overlap + subfolder category boost.
+    Returns top-k most relevant chunks in document order.
+    """
+    if not all_chunks:
+        return []
+
+    q_words  = set(question.lower().split())
+    detected = detect_category(question)
+    scored   = []
+
+    for i, chunk in enumerate(all_chunks):
+        chunk_words = set(chunk["text"].lower().split())
+        overlap     = len(q_words & chunk_words)
+
+        # Boost if chunk belongs to the detected category's subfolder
+        cat_boost = 0
+        if detected:
+            subfolder = chunk.get("subfolder", "").lower()
+            for key_sf, cats in SUBFOLDER_CATEGORY_MAP.items():
+                if key_sf in subfolder and detected in cats:
+                    cat_boost = 5
+                    break
+
+        score = overlap + cat_boost
+        if score > 0:
+            scored.append((score, i))
+
+    scored.sort(reverse=True)
+    top_indices = sorted([i for _, i in scored[:top_k]])
+
+    # If nothing scored, fall back to first top_k chunks
+    if not top_indices:
+        top_indices = list(range(min(top_k, len(all_chunks))))
+
+    return [all_chunks[i] for i in top_indices]
+
+
+def chunks_to_context(chunks: list) -> str:
+    """Format chunks into a readable context string for Claude."""
+    parts = []
+    for c in chunks:
+        header = f"=== {c['source']}"
+        if c['total_chunks'] > 1:
+            header += f" (part {c['chunk_id']+1}/{c['total_chunks']})"
+        if c['subfolder'] and c['subfolder'] != ".":
+            header += f" [{c['subfolder']}]"
+        header += " ==="
+        parts.append(f"{header}\n{c['text']}")
+    return "\n\n".join(parts)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EMAIL HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
 def send_email_generic(subject, html_body, to):
     try:
         msg = MIMEMultipart("alternative")
@@ -267,7 +403,7 @@ def send_email_generic(subject, html_body, to):
 
 
 def send_request_email(name, email, details):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now  = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = f"""<html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
         <div style="background:linear-gradient(90deg,#1B4FD8,#2080E5);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
             <h2 style="color:white;margin:0;">New Request / Inquiry — PetroApp</h2></div>
@@ -294,7 +430,7 @@ def send_request_email(name, email, details):
 
 
 def send_error_report(user_email, error_text):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now  = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = f"""<html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
         <div style="background:#dc2626;padding:18px 28px;border-radius:12px;margin-bottom:20px;">
             <h2 style="color:white;margin:0;">Chatbot Error Report</h2></div>
@@ -309,7 +445,7 @@ def send_error_report(user_email, error_text):
 
 
 def send_qa_report_for_unanswered(user_email, user_name, question):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now  = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = f"""<html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
         <div style="background:linear-gradient(90deg,#f59e0b,#d97706);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
             <h2 style="color:white;margin:0;">Unanswered Question Reported</h2></div>
@@ -320,39 +456,55 @@ def send_qa_report_for_unanswered(user_email, user_name, question):
         </table>
         <p style="color:#888;font-size:12px;margin-top:20px;">PetroApp — Governance Tool — This question was not found in the current documents.</p>
     </body></html>"""
-    return send_email_generic(f"Unanswered Question — {now}", html,
-                               [TO_EMAIL] + CC_EMAILS)
+    return send_email_generic(f"Unanswered Question — {now}", html, [TO_EMAIL] + CC_EMAILS)
 
 
-def call_claude(messages_history, document_context):
+# ══════════════════════════════════════════════════════════════════════════════
+# CLAUDE API CALL — SMART RAG
+# ══════════════════════════════════════════════════════════════════════════════
+def call_claude(messages_history: list, all_chunks: list) -> str:
+    # Get the latest user question for chunk selection
+    latest_q = ""
+    for msg in reversed(messages_history):
+        if msg["role"] == "user":
+            latest_q = msg["content"]
+            break
+
+    # Select relevant chunks
+    relevant = get_relevant_chunks(latest_q, all_chunks, TOP_K_CHUNKS)
+    document_context = chunks_to_context(relevant)
+    detected_cat = detect_category(latest_q)
+
     system_prompt = f"""You are a precise assistant for the QA and Governance department at PetroApp.
-Your ONLY source of information is the documents provided below. Do NOT use any external knowledge.
+Your ONLY source of information is the document excerpts provided below. Do NOT use any external knowledge.
 
 STRICT RULES:
 1. Read the documents exactly as written. Never paraphrase, combine, or assume roles.
-2. When answering about tables (e.g., Develop / Endorse / Approve columns), list each column SEPARATELY and copy the exact names from the document. Do NOT mix values between columns.
-3. If a table has columns like [Decision | Develop | Endorse | Approve], make sure you read each row left to right and keep each column's value in the correct place.
+2. When answering about tables (e.g., Develop / Endorse / Approve columns), list each column SEPARATELY
+   and copy the exact names from the document. Do NOT mix values between columns.
+3. If a table has columns like [Decision | Develop | Endorse | Approve], read each row left to right
+   and keep each column's value in the correct place.
 4. Do NOT include BOD (Board of Directors) level authorities unless the user explicitly asks about BOD.
 5. ALWAYS try your best to answer from the documents:
-   - First: look for an exact match to the question.
-   - If no exact match: find the NEAREST or MOST RELATED topic in the documents and share it, clearly stating it is the closest match found.
-   - Only if truly nothing related exists at all: say "I could not find this information in the provided documents."
+   - First: look for an exact match.
+   - If no exact match: find the NEAREST or MOST RELATED topic and share it, clearly stating it is the closest match.
+   - Only if truly nothing related exists: say "I could not find this information in the provided documents."
 6. Never leave the user with no information — always share the nearest relevant content you can find.
 7. Answer in the same language the user writes in (Arabic or English).
-8. Always end every response with this line:
+8. Always end every response with:
 ---
 For further assistance, please contact the QA and Governance team directly.
 
---- DOCUMENTS ---
+--- DOCUMENT EXCERPTS ---
 {document_context}
 --- END ---"""
 
-    client = anthropic.Anthropic(api_key=API_KEY)
+    client   = anthropic.Anthropic(api_key=API_KEY)
     response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        system=system_prompt,
-        messages=[{"role": m["role"], "content": m["content"]} for m in messages_history]
+        model      = "claude-haiku-4-5-20251001",
+        max_tokens = 1024,
+        system     = system_prompt,
+        messages   = [{"role": m["role"], "content": m["content"]} for m in messages_history]
     )
     return response.content[0].text
 
@@ -378,8 +530,8 @@ if not st.session_state.authenticated:
             unsafe_allow_html=True
         )
         with st.form("login_form"):
-            name  = st.text_input("Full Name", placeholder="Ahmed Hassan")
-            email = st.text_input("Work Email", placeholder="name@petroapp.com")
+            name  = st.text_input("Full Name",   placeholder="Ahmed Hassan")
+            email = st.text_input("Work Email",  placeholder="name@petroapp.com")
             login = st.form_submit_button("Sign In →", use_container_width=True)
 
         if login:
@@ -395,10 +547,11 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MAIN APP
+# MAIN APP — Load chunks
 # ══════════════════════════════════════════════════════════════════════════════
-is_admin = st.session_state.user_email.lower() == ADMIN_EMAIL
-repo_doc_context = load_repo_documents()
+is_admin    = st.session_state.user_email.lower() == ADMIN_EMAIL
+repo_chunks = load_documents_chunked()
+all_chunks  = repo_chunks + st.session_state.get("uploaded_chunks", [])
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -414,35 +567,39 @@ with st.sidebar:
     st.markdown("---")
 
     if is_admin:
-        st.markdown("## 📁 Manage Documents")
-        st.caption("Admin only — Upload Policies, Procedures, or DOA files")
+        st.markdown("## 📁 Upload Documents")
+        st.caption("Upload files (session only — for permanent: add to GitHub)")
         uploaded_files = st.file_uploader(
-            "Upload files", type=["pdf","docx","xlsx"],
+            "Upload files", type=["pdf", "docx", "xlsx"],
             accept_multiple_files=True, label_visibility="collapsed"
         )
         if uploaded_files:
-            ctx = ""
+            new_chunks = []
             for f in uploaded_files:
-                ctx += f"\n\n=== Document: {f.name} ===\n{extract_text(f)}"
-            st.session_state.uploaded_docs_context = ctx
-            st.success(f"✅ {len(uploaded_files)} file(s) loaded")
-            for f in uploaded_files:
-                st.caption(f"📄 {f.name}")
-        elif repo_doc_context:
-            st.info("📂 Using documents from the repository.")
-        else:
-            st.warning("No documents loaded yet.")
+                text = extract_text(f, f.name)
+                doc_chunks = chunk_text(text)
+                for i, ch in enumerate(doc_chunks):
+                    new_chunks.append({
+                        "source":       f.name,
+                        "subfolder":    "uploaded",
+                        "chunk_id":     i,
+                        "total_chunks": len(doc_chunks),
+                        "text":         ch,
+                    })
+            st.session_state.uploaded_chunks = new_chunks
+            st.success(f"✅ {len(uploaded_files)} file(s) → {len(new_chunks)} chunks loaded")
+
         st.markdown("---")
         st.markdown("## ⚙️ System Status")
-        repo_count = len(glob.glob(os.path.join(DOCS_FOLDER,"*.*"))) if os.path.exists(DOCS_FOLDER) else 0
-        st.caption(f"API Key: {'✅ Configured' if API_KEY else '❌ Missing'}")
-        st.caption(f"Email:   {'✅ Configured' if SMTP_EMAIL else '❌ Missing'}")
-        st.caption(f"Repo Docs: {repo_count} file(s)")
+        st.caption(f"API Key:   {'✅' if API_KEY    else '❌ Missing'}")
+        st.caption(f"Email:     {'✅' if SMTP_EMAIL else '❌ Missing'}")
+        st.caption(f"Repo docs: {len(repo_chunks)} chunks from {len(set(c['source'] for c in repo_chunks))} files")
     else:
-        if repo_doc_context or st.session_state.uploaded_docs_context:
-            st.success("📂 Documents are loaded and ready!")
+        total_files = len(set(c["source"] for c in all_chunks)) if all_chunks else 0
+        if all_chunks:
+            st.success(f"📂 {total_files} document(s) ready")
         else:
-            st.info("Documents are being prepared.")
+            st.info("Documents are being loaded.")
 
     st.markdown("---")
     st.caption("🔒 PetroApp — Governance Tool")
@@ -458,8 +615,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-document_context = repo_doc_context + st.session_state.uploaded_docs_context
-
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_labels = ["💬 Ask a Question", "📋 New Request / Inquiry"]
 if is_admin:
@@ -474,9 +629,12 @@ tab3 = tab_objects[2] if is_admin else None
 # TAB 1 — Chat
 # ════════════════════════════════════════════════════════════════════════════════
 with tab1:
-    if not document_context.strip():
-        st.info("📂 Documents are being loaded. Please contact the admin if this persists.")
+    if not all_chunks:
+        st.info("📂 No documents loaded yet. Please contact the admin.")
     else:
+        total_files = len(set(c["source"] for c in all_chunks))
+        st.caption(f"🔍 Smart search across {total_files} document(s) — {len(all_chunks)} indexed chunks")
+
         # ── Dynamic Quick Questions ──
         dynamic_faqs = get_dynamic_faqs(5)
         st.markdown("**💡 Most Asked Questions:**")
@@ -493,9 +651,7 @@ with tab1:
         for idx, msg in enumerate(st.session_state.messages):
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
-                # Show action buttons under not-found assistant answers
                 if msg["role"] == "assistant" and is_not_found_answer(msg["content"]):
-                    # Find the user question that triggered this answer
                     user_q = ""
                     if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
                         user_q = st.session_state.messages[idx-1]["content"]
@@ -507,7 +663,7 @@ with tab1:
                                 st.session_state.user_name,
                                 user_q
                             )
-                        st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled with your question.")
+                        st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled.")
 
         # ── Chat input ──
         user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
@@ -529,14 +685,21 @@ with tab1:
                     st.write(question_to_process)
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Thinking..."):
+                    with st.spinner("Searching documents..."):
                         try:
-                            answer = call_claude(st.session_state.messages, document_context)
+                            answer = call_claude(st.session_state.messages, all_chunks)
                             st.write(answer)
                             st.session_state.messages.append({"role": "assistant", "content": answer})
                             st.session_state.last_error = None
 
-                            # Single button if not found
+                            # Show detected category info
+                            detected = detect_category(question_to_process)
+                            if detected:
+                                st.markdown(
+                                    f'<div class="chunk-info">🔍 Auto-detected category: <strong>{detected.upper()}</strong> — searched most relevant excerpts</div>',
+                                    unsafe_allow_html=True
+                                )
+
                             if is_not_found_answer(answer):
                                 if st.button("📋 Submit Request to Gov Team", key="submit_gov_new"):
                                     st.session_state.prefill_inquiry = question_to_process
@@ -546,7 +709,7 @@ with tab1:
                                             st.session_state.user_name,
                                             question_to_process
                                         )
-                                    st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled with your question.")
+                                    st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled.")
                         except Exception as e:
                             err_msg = str(e)
                             st.session_state.last_error = err_msg
@@ -556,7 +719,6 @@ with tab1:
                                 unsafe_allow_html=True
                             )
 
-        # ── Report system error button ──
         if st.session_state.last_error:
             st.markdown("---")
             if st.button("🚨 Report this error to Admin"):
@@ -582,7 +744,7 @@ with tab2:
         with c1:
             req_name  = st.text_input("Your Full Name *", value=st.session_state.user_name)
         with c2:
-            req_email = st.text_input("Your Email *", value=st.session_state.user_email)
+            req_email = st.text_input("Your Email *",     value=st.session_state.user_email)
         req_details = st.text_area(
             "Your request or inquiry *",
             value=prefill,
@@ -619,10 +781,23 @@ if is_admin and tab3:
 
         with col1:
             st.markdown("### 📊 System Overview")
-            repo_count = len(glob.glob(os.path.join(DOCS_FOLDER,"*.*"))) if os.path.exists(DOCS_FOLDER) else 0
-            st.metric("Repo Documents", f"{repo_count} files")
+            total_files  = len(set(c["source"] for c in repo_chunks))
+            total_chunks = len(repo_chunks)
+            st.metric("Documents Indexed", f"{total_files} files")
+            st.metric("Total Chunks",      f"{total_chunks} chunks")
             st.metric("API Key",    "✅ Active" if API_KEY    else "❌ Missing")
             st.metric("Email Config","✅ Active" if SMTP_EMAIL else "❌ Missing")
+
+            # Breakdown by subfolder
+            if repo_chunks:
+                st.markdown("**Documents by folder:**")
+                subfolder_counts = {}
+                for c in repo_chunks:
+                    sf = c["subfolder"] or "root"
+                    subfolder_counts[sf] = subfolder_counts.get(sf, set())
+                    subfolder_counts[sf].add(c["source"])
+                for sf, files in sorted(subfolder_counts.items()):
+                    st.caption(f"📁 `{sf}`: {len(files)} file(s)")
 
             st.markdown("### 📈 Top Questions Asked")
             counts = load_faq_counts()
@@ -642,15 +817,35 @@ if is_admin and tab3:
             st.markdown("- [Anthropic Console](https://platform.claude.com)")
 
         with col2:
-            st.markdown("### 📁 Document Management")
+            st.markdown("### 📁 Document Folder Structure")
             st.info("""
-            **How to add permanent documents:**
-            1. Go to your GitHub repository
-            2. Open the `documents` folder
-            3. Click "Add file" → "Upload files"
-            4. Upload your PDF, DOCX, or XLSX files
-            5. Documents load automatically for all users
+**Recommended folder structure on GitHub:**
+
+```
+documents/
+├── policies/
+│   ├── hr/         ← HR policies
+│   ├── doa/        ← Delegation of Authority
+│   ├── sales/      ← Sales & discounts
+│   ├── finance/    ← Finance policies
+│   ├── it/         ← IT & tools
+│   └── general/    ← General policies
+└── sops/
+    ├── customer_experience/
+    ├── operations/
+    ├── sales/
+    ├── finance/
+    └── it/
+```
+
+**How to add documents:**
+1. Go to your GitHub repo
+2. Navigate to the right subfolder
+3. Click "Add file" → "Upload files"
+4. Upload PDF/DOCX/XLSX
+5. App re-indexes automatically on next load
             """)
+
             st.markdown("### 📧 Send Announcement")
             with st.form("admin_announce"):
                 ann_to   = st.text_input("To (email)")
