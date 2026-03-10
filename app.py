@@ -36,6 +36,25 @@ except Exception:
     SMTP_SERVER = "smtp.office365.com"
     SMTP_PORT   = 587
 
+# ── PetroApp P Logo SVG (matches brand) ──────────────────────────────────────
+PETROAPP_LOGO_SVG = """
+<svg width="80" height="80" viewBox="0 0 68 90" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="5" width="17" height="80" fill="#1B6FE8"/>
+  <path fill="#1B6FE8" d="M 37,5 Q 66,5 66,30 Q 66,55 37,55 L 20,55 L 20,5 Z"/>
+  <rect x="3" y="36" width="17" height="20" fill="#1B6FE8"/>
+  <path fill="white" d="M 37,18 Q 51,18 51,30 Q 51,42 37,42 L 3,42 L 3,36 L 20,36 L 20,18 Z"/>
+</svg>
+"""
+
+PETROAPP_LOGO_SVG_SMALL = """
+<svg width="44" height="44" viewBox="0 0 68 90" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="5" width="17" height="80" fill="white"/>
+  <path fill="white" d="M 37,5 Q 66,5 66,30 Q 66,55 37,55 L 20,55 L 20,5 Z"/>
+  <rect x="3" y="36" width="17" height="20" fill="white"/>
+  <path fill="#1B6FE8" d="M 37,18 Q 51,18 51,30 Q 51,42 37,42 L 3,42 L 3,36 L 20,36 L 20,18 Z"/>
+</svg>
+"""
+
 # ── Global CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -44,52 +63,38 @@ st.markdown("""
 * { font-family: 'Inter', sans-serif; }
 .stApp { background-color: #f0f4ff; }
 
-/* ── Animated P Logo ── */
-@keyframes rotatePetal {
-    0%   { transform: rotate(0deg) scale(1); }
-    25%  { transform: rotate(5deg) scale(1.04); }
-    50%  { transform: rotate(0deg) scale(1); }
-    75%  { transform: rotate(-5deg) scale(1.04); }
-    100% { transform: rotate(0deg) scale(1); }
-}
+/* ── Animations ── */
 @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes glowPulse {
-    0%   { box-shadow: 0 0 0 0 rgba(37,99,235,0.25); }
-    50%  { box-shadow: 0 0 0 16px rgba(37,99,235,0); }
-    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    0%   { box-shadow: 0 0 0 0 rgba(27,111,232,0.30); }
+    50%  { box-shadow: 0 0 0 18px rgba(27,111,232,0); }
+    100% { box-shadow: 0 0 0 0 rgba(27,111,232,0); }
+}
+@keyframes floatLogo {
+    0%   { transform: translateY(0px); }
+    50%  { transform: translateY(-6px); }
+    100% { transform: translateY(0px); }
 }
 
+/* ── Login ── */
 .login-wrapper {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; min-height: 80vh;
+    justify-content: center; min-height: 78vh;
     animation: fadeSlideIn 0.6s ease-out;
 }
 .petro-logo-wrap {
-    animation: glowPulse 2.5s infinite;
-    border-radius: 50%; display: inline-block; margin-bottom: 20px;
-}
-.petro-p {
-    width: 90px; height: 90px;
-    background: linear-gradient(135deg, #2563EB, #1d4ed8);
-    border-radius: 24px;
-    display: flex; align-items: center; justify-content: center;
-    animation: rotatePetal 4s ease-in-out infinite;
-    box-shadow: 0 8px 32px rgba(37,99,235,0.35);
-}
-.petro-p span {
-    font-size: 52px; font-weight: 800; color: white;
-    font-family: 'Inter', sans-serif; line-height: 1;
-    letter-spacing: -2px;
+    animation: glowPulse 2.5s infinite, floatLogo 3s ease-in-out infinite;
+    border-radius: 16px; display: inline-block; margin-bottom: 20px;
 }
 .login-title {
     font-size: 28px; font-weight: 700; color: #1e3a8a;
     margin: 4px 0; text-align: center;
 }
 .login-sub {
-    font-size: 14px; color: #2563EB; font-weight: 500;
+    font-size: 14px; color: #1B6FE8; font-weight: 500;
     margin-bottom: 4px; text-align: center;
 }
 .login-restricted {
@@ -97,37 +102,46 @@ st.markdown("""
 }
 .login-card {
     background: white; border-radius: 20px; padding: 36px 40px;
-    box-shadow: 0 8px 40px rgba(37,99,235,0.10);
+    box-shadow: 0 8px 40px rgba(27,111,232,0.10);
     width: 100%; max-width: 440px;
 }
 
 /* ── Header ── */
 .petroapp-header {
-    background: linear-gradient(90deg, #1d4ed8, #2563EB, #3b82f6);
-    padding: 16px 28px; border-radius: 14px; margin-bottom: 20px;
-    display: flex; align-items: center; gap: 16px;
-    box-shadow: 0 4px 20px rgba(37,99,235,0.25);
+    background: linear-gradient(90deg, #1B4FD8, #1B6FE8, #3b82f6);
+    padding: 14px 24px; border-radius: 14px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 4px 20px rgba(27,111,232,0.25);
 }
 .header-logo {
-    width: 48px; height: 48px; background: rgba(255,255,255,0.2);
-    border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 26px; font-weight: 800; color: white; flex-shrink: 0;
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
 }
 .header-title h1 { color: white; font-size: 20px; margin: 0; font-weight: 700; }
 .header-title p  { color: rgba(255,255,255,0.75); font-size: 12px; margin: 2px 0 0 0; }
 
 /* ── Quick FAQ buttons ── */
-.faq-btn {
-    display: inline-block; background: white; border: 1.5px solid #dbeafe;
-    border-radius: 20px; padding: 7px 16px; margin: 4px; font-size: 13px;
-    color: #2563EB; cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 1px 4px rgba(37,99,235,0.07);
+.stButton > button[kind="secondary"] {
+    background: white !important;
+    border: 1.5px solid #dbeafe !important;
+    color: #1B6FE8 !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    padding: 6px 14px !important;
+    box-shadow: 0 1px 4px rgba(27,111,232,0.07) !important;
 }
-.faq-btn:hover { background: #2563EB; color: white; border-color: #2563EB; }
+.stButton > button[kind="secondary"]:hover {
+    background: #1B6FE8 !important;
+    color: white !important;
+    border-color: #1B6FE8 !important;
+}
 
 /* ── Admin badge ── */
 .admin-badge {
-    background: linear-gradient(90deg, #2563EB, #1d4ed8);
+    background: linear-gradient(90deg, #1B6FE8, #1B4FD8);
     color: white; border-radius: 20px; padding: 2px 12px;
     font-size: 11px; font-weight: 600; display: inline-block;
     margin-left: 8px; vertical-align: middle;
@@ -139,21 +153,25 @@ st.markdown("""
     border-radius: 12px; padding: 16px 20px; margin-top: 12px;
 }
 
-/* ── Buttons ── */
-.stButton > button {
-    background-color: #2563EB !important; color: white !important;
+/* ── Primary buttons ── */
+.stButton > button[kind="primary"],
+.stButton > button:not([kind]) {
+    background-color: #1B6FE8 !important; color: white !important;
     border: none !important; border-radius: 10px !important;
-    font-weight: 600 !important; transition: all 0.2s !important;
+    font-weight: 600 !important;
 }
-.stButton > button:hover { background-color: #1d4ed8 !important; }
+.stButton > button[kind="primary"]:hover,
+.stButton > button:not([kind]):hover {
+    background-color: #1B4FD8 !important;
+}
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab"] {
     background: #e8f0fe; border-radius: 8px 8px 0 0;
-    color: #2563EB; font-weight: 600;
+    color: #1B6FE8; font-weight: 600;
 }
 .stTabs [aria-selected="true"] {
-    background: #2563EB !important; color: white !important;
+    background: #1B6FE8 !important; color: white !important;
 }
 
 /* ── Sidebar ── */
@@ -170,7 +188,8 @@ for key, val in {
     "user_name": "",
     "messages": [],
     "uploaded_docs_context": "",
-    "last_error": None
+    "last_error": None,
+    "pending_question": None
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -244,7 +263,7 @@ def send_request_email(requester_name, requester_email, request_text):
     now  = datetime.now().strftime("%Y-%m-%d %H:%M")
     html = f"""
     <html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
-        <div style="background:linear-gradient(90deg,#1d4ed8,#2563EB);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
+        <div style="background:linear-gradient(90deg,#1B4FD8,#1B6FE8);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
             <h2 style="color:white;margin:0;">🔔 New Authority Request — PetroApp</h2>
         </div>
         <table style="border-collapse:collapse;width:100%;max-width:620px;">
@@ -264,12 +283,12 @@ def send_request_email(requester_name, requester_email, request_text):
     if ok:
         confirm_html = f"""
         <html><body style="font-family:Inter,Arial,sans-serif;color:#333;padding:24px;">
-            <div style="background:linear-gradient(90deg,#1d4ed8,#2563EB);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
+            <div style="background:linear-gradient(90deg,#1B4FD8,#1B6FE8);padding:18px 28px;border-radius:12px;margin-bottom:20px;">
                 <h2 style="color:white;margin:0;">✅ Request Submitted</h2>
             </div>
             <p>Dear <strong>{requester_name}</strong>,</p>
-            <p>Your request has been submitted to the QA & Governance team.</p>
-            <blockquote style="border-left:4px solid #2563EB;padding:10px 16px;background:#f0f5ff;border-radius:0 8px 8px 0;">
+            <p>Your request has been submitted to the QA &amp; Governance team.</p>
+            <blockquote style="border-left:4px solid #1B6FE8;padding:10px 16px;background:#f0f5ff;border-radius:0 8px 8px 0;">
                 {request_text}
             </blockquote>
             <p style="color:#888;font-size:12px;margin-top:20px;">PetroApp — Governance Tool</p>
@@ -298,18 +317,41 @@ def send_error_report(user_email, error_text):
     return send_email_generic(f"🚨 Chatbot Error — {now}", html, [ADMIN_EMAIL])
 
 
+def call_claude(messages_history, document_context):
+    """Call Claude API and return the answer text, or raise on error."""
+    system_prompt = f"""You are a helpful assistant for the QA and Governance department at PetroApp.
+Answer questions strictly based on the documents below.
+If the answer is not found, say: "I could not find this information in the provided documents."
+Be clear, concise, and professional. Always end EVERY response with:
+---
+📞 **For any unclear authorities or further assistance, please contact the QA & Governance team directly.**
+
+--- DOCUMENTS ---
+{document_context}
+--- END ---"""
+
+    client   = anthropic.Anthropic(api_key=API_KEY)
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        system=system_prompt,
+        messages=[{"role": m["role"], "content": m["content"]} for m in messages_history]
+    )
+    return response.content[0].text
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # LOGIN PAGE
 # ══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown("""
+        st.markdown(f"""
         <div class="login-wrapper">
             <div class="petro-logo-wrap">
-                <div class="petro-p"><span>P</span></div>
+                {PETROAPP_LOGO_SVG}
             </div>
-            <div class="login-title">QA & Governance Chatbot</div>
+            <div class="login-title">QA &amp; Governance Chatbot</div>
             <div class="login-sub">PetroApp — Governance Tool</div>
             <div class="login-restricted">🔒 Access restricted to PetroApp employees only</div>
         </div>
@@ -347,18 +389,17 @@ with st.sidebar:
     st.caption(st.session_state.user_email)
 
     if st.button("🚪 Sign Out", use_container_width=True):
-        for k in ["authenticated", "user_email", "user_name", "messages", "uploaded_docs_context", "last_error"]:
-            st.session_state[k] = False if k == "authenticated" else "" if k in ["user_email","user_name","uploaded_docs_context"] else [] if k == "messages" else None
+        for k in ["authenticated","user_email","user_name","messages","uploaded_docs_context","last_error","pending_question"]:
+            st.session_state[k] = False if k=="authenticated" else "" if k in ["user_email","user_name","uploaded_docs_context"] else [] if k=="messages" else None
         st.rerun()
 
     st.markdown("---")
 
-    # ── ADMIN ONLY: Upload Documents ──
     if is_admin:
         st.markdown("## 📁 Manage Documents")
         st.caption("Admin only — Upload Policies, Procedures, or DOA files")
         uploaded_files = st.file_uploader(
-            "Upload files", type=["pdf", "docx", "xlsx"],
+            "Upload files", type=["pdf","docx","xlsx"],
             accept_multiple_files=True, label_visibility="collapsed"
         )
         if uploaded_files:
@@ -378,10 +419,9 @@ with st.sidebar:
         st.markdown("## ⚙️ System Status")
         st.caption(f"API Key: {'✅ Configured' if API_KEY else '❌ Missing'}")
         st.caption(f"Email:   {'✅ Configured' if SMTP_EMAIL else '❌ Missing'}")
-        repo_count = len(glob.glob(os.path.join(DOCS_FOLDER, "*.*"))) if os.path.exists(DOCS_FOLDER) else 0
+        repo_count = len(glob.glob(os.path.join(DOCS_FOLDER,"*.*"))) if os.path.exists(DOCS_FOLDER) else 0
         st.caption(f"Repo Docs: {repo_count} file(s)")
     else:
-        # Regular users just see doc status
         if repo_doc_context or st.session_state.uploaded_docs_context:
             st.success("📂 Documents are loaded and ready!")
         else:
@@ -393,7 +433,7 @@ with st.sidebar:
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="petroapp-header">
-    <div class="header-logo">P</div>
+    <div class="header-logo">{PETROAPP_LOGO_SVG_SMALL}</div>
     <div class="header-title">
         <h1>QA &amp; Governance Chatbot</h1>
         <p>Welcome, {st.session_state.user_name} &nbsp;·&nbsp; {st.session_state.user_email}</p>
@@ -434,7 +474,7 @@ with tab1:
         for i, faq in enumerate(faqs):
             with cols[i]:
                 if st.button(faq, key=f"faq_{i}", use_container_width=True):
-                    st.session_state.messages.append({"role": "user", "content": faq})
+                    st.session_state.pending_question = faq
                     st.rerun()
 
         st.markdown("---")
@@ -447,39 +487,27 @@ with tab1:
         # ── Chat input ──
         user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
 
-        if user_input:
+        # ── Resolve question to process (typed OR from FAQ button) ──
+        question_to_process = user_input or st.session_state.get("pending_question")
+
+        if question_to_process:
+            # Clear pending if it came from FAQ
+            if st.session_state.get("pending_question"):
+                st.session_state.pending_question = None
+
             if not API_KEY:
                 err = "Claude API Key is not configured. Please contact the admin."
                 st.error(err)
                 st.session_state.last_error = err
             else:
-                st.session_state.messages.append({"role": "user", "content": user_input})
+                st.session_state.messages.append({"role": "user", "content": question_to_process})
                 with st.chat_message("user"):
-                    st.write(user_input)
-
-                system_prompt = f"""You are a helpful assistant for the QA and Governance department at PetroApp.
-Answer questions strictly based on the documents below.
-If not found, say: "I could not find this information in the provided documents."
-Be clear, concise, and professional. Always end EVERY response with:
----
-📞 **For any unclear authorities or further assistance, please contact the QA & Governance team directly.**
-
---- DOCUMENTS ---
-{document_context}
---- END ---"""
+                    st.write(question_to_process)
 
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
                         try:
-                            client   = anthropic.Anthropic(api_key=API_KEY)
-                            response = client.messages.create(
-                                model="claude-haiku-4-5-20251001",
-                                max_tokens=1024,
-                                system=system_prompt,
-                                messages=[{"role": m["role"], "content": m["content"]}
-                                          for m in st.session_state.messages]
-                            )
-                            answer = response.content[0].text
+                            answer = call_claude(st.session_state.messages, document_context)
                             st.write(answer)
                             st.session_state.messages.append({"role": "assistant", "content": answer})
                             st.session_state.last_error = None
@@ -554,7 +582,8 @@ if is_admin and tab3:
 
         with col1:
             st.markdown("### 📊 System Overview")
-            st.metric("Repo Documents", f"{len(glob.glob(os.path.join(DOCS_FOLDER, '*.*'))) if os.path.exists(DOCS_FOLDER) else 0} files")
+            repo_count = len(glob.glob(os.path.join(DOCS_FOLDER,"*.*"))) if os.path.exists(DOCS_FOLDER) else 0
+            st.metric("Repo Documents", f"{repo_count} files")
             st.metric("API Key", "✅ Active" if API_KEY else "❌ Missing")
             st.metric("Email Config", "✅ Active" if SMTP_EMAIL else "❌ Missing")
 
@@ -568,9 +597,10 @@ if is_admin and tab3:
             st.info("""
             **How to add permanent documents:**
             1. Go to your GitHub repository
-            2. Create a folder called `documents`
-            3. Upload your PDF, DOCX, or XLSX files there
-            4. Documents will load automatically for all users
+            2. Open the `documents` folder
+            3. Click "Add file" → "Upload files"
+            4. Upload your PDF, DOCX, or XLSX files
+            5. Documents load automatically for all users
 
             **Session documents** (uploaded via sidebar) are only available until the app restarts.
             """)
