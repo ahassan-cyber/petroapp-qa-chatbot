@@ -17,8 +17,9 @@ ADMIN_EMAIL     = "a.hassan@petroapp.com"
 ALLOWED_DOMAIN  = "petroapp.com"
 TO_EMAIL        = "quality.assurance@petroapp.com"
 CC_EMAILS       = ["osama.adel@petroapp.com", "a.hassan@petroapp.com", "mohamed.yassin@petroapp.com"]
-DOCS_FOLDER     = "documents"
-FAQ_COUNTS_FILE = "faq_counts.json"
+DOCS_FOLDER        = "documents"
+FAQ_COUNTS_FILE    = "faq_counts.json"
+INQUIRY_COUNT_FILE = "inquiry_count.json"
 
 # RAG Settings
 CHUNK_SIZE     = 700   # words per chunk
@@ -121,27 +122,40 @@ except Exception:
     SMTP_SERVER = "smtp.office365.com"
     SMTP_PORT   = 587
 
-# ── PetroApp Logo (base64 SVG) ────────────────────────────────────────────────
-_LOGO_BLUE = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
-  <rect x="28" y="0" width="19" height="140" fill="#2080E5"/>
-  <path fill="#2080E5" d="M 47,0 L 58,0 A 33,33 0 0 1 58,66 L 28,66 L 28,0 Z"/>
-  <rect x="6" y="49" width="22" height="22" fill="#2080E5"/>
-  <path fill="white" d="M 47,17 L 52,17 A 16,16 0 0 1 52,49 L 47,49 Z"/>
-</svg>'''
+# ── PetroApp Logo — load from assets/logo.png ────────────────────────────────
+def _load_logo_b64(path: str) -> str | None:
+    """Load a PNG file and return base64 string, or None if not found."""
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return None
 
-_LOGO_WHITE = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
-  <rect x="28" y="0" width="19" height="140" fill="white"/>
-  <path fill="white" d="M 47,0 L 58,0 A 33,33 0 0 1 58,66 L 28,66 L 28,0 Z"/>
-  <rect x="6" y="49" width="22" height="22" fill="white"/>
-  <path fill="#2080E5" d="M 47,17 L 52,17 A 16,16 0 0 1 52,49 L 47,49 Z"/>
-</svg>'''
+def _png_img(b64: str, w: int, h: int, style: str = "") -> str:
+    return (f'<img src="data:image/png;base64,{b64}" '
+            f'width="{w}" height="{h}" style="display:block;{style}"/>')
 
-def _b64img(svg, w, h):
+def _svg_fallback_img(color: str, w: int, h: int) -> str:
+    """Fallback SVG if PNG not available."""
+    fill = color
+    inner = "white" if color != "white" else "#2080E5"
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">'
+           f'<rect x="28" y="0" width="19" height="140" fill="{fill}"/>'
+           f'<path fill="{fill}" d="M 47,0 L 58,0 A 33,33 0 0 1 58,66 L 28,66 L 28,0 Z"/>'
+           f'<rect x="6" y="49" width="22" height="22" fill="{fill}"/>'
+           f'<path fill="{inner}" d="M 47,17 L 52,17 A 16,16 0 0 1 52,49 L 47,49 Z"/>'
+           f'</svg>')
     b64 = base64.b64encode(svg.encode()).decode()
     return f'<img src="data:image/svg+xml;base64,{b64}" width="{w}" height="{h}" style="display:block;"/>'
 
-LOGO_LG = _b64img(_LOGO_BLUE,  80, 80)
-LOGO_SM = _b64img(_LOGO_WHITE, 40, 40)
+_LOGO_PNG_B64 = _load_logo_b64("assets/logo.png")
+
+if _LOGO_PNG_B64:
+    LOGO_LG = _png_img(_LOGO_PNG_B64, 80, 80)
+    LOGO_SM = _png_img(_LOGO_PNG_B64, 40, 40, "filter:brightness(0) invert(1);")
+else:
+    LOGO_LG = _svg_fallback_img("#2080E5", 80, 80)
+    LOGO_SM = _svg_fallback_img("white",   40, 40)
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -174,6 +188,55 @@ st.markdown("""
 .stTabs [data-baseweb="tab"] { background:#e8f0fe; border-radius:8px 8px 0 0; color:#2080E5; font-weight:600; }
 .stTabs [aria-selected="true"] { background:#2080E5 !important; color:white !important; }
 section[data-testid="stSidebar"] { background:#f0f5ff; }
+
+/* ── Inquiry Counter Card ──────────────────────────────────────────────── */
+.inquiry-counter-card {
+    background: linear-gradient(135deg, #1a3c8f 0%, #2080E5 100%);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    margin: 4px 0;
+}
+.inquiry-counter-card::after {
+    content: '';
+    position: absolute; top: -24px; right: -24px;
+    width: 90px; height: 90px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 50%;
+}
+.counter-lbl  { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.counter-num  { font-size: 36px; font-weight: 800; line-height: 1; }
+.counter-desc { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+
+/* ── Option C: Chat Input Highlight ───────────────────────────────────── */
+section[data-testid="stBottom"] {
+    background: linear-gradient(135deg, #1a3c8f 0%, #1a6cf5 100%) !important;
+    padding: 14px 20px 14px 20px !important;
+    border-radius: 14px 14px 0 0 !important;
+    box-shadow: 0 -4px 20px rgba(26,108,245,0.2) !important;
+}
+section[data-testid="stBottom"]::before {
+    content: "🔍  Ask a question about your company Framework";
+    display: block;
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+}
+[data-testid="stChatInput"] > div {
+    background: white !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+    border: none !important;
+}
+[data-testid="stChatInput"] textarea {
+    font-size: 15px !important;
+    color: #333 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -227,6 +290,28 @@ def get_dynamic_faqs(n=5):
     top = [q for q, _ in sorted(counts.items(), key=lambda x: x[1], reverse=True)]
     needed = [f for f in DEFAULT_FAQS if f not in top]
     return (top + needed)[:n]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# INQUIRY COUNTER
+# ══════════════════════════════════════════════════════════════════════════════
+def load_inquiry_count() -> int:
+    if os.path.exists(INQUIRY_COUNT_FILE):
+        try:
+            with open(INQUIRY_COUNT_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("total", 0)
+        except Exception:
+            pass
+    return 0
+
+def increment_inquiry_count():
+    count = load_inquiry_count() + 1
+    try:
+        with open(INQUIRY_COUNT_FILE, "w", encoding="utf-8") as f:
+            json.dump({"total": count}, f)
+    except Exception:
+        pass
+    return count
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DOCUMENT PROCESSING — CHUNKING RAG
@@ -595,11 +680,19 @@ with st.sidebar:
         st.caption(f"Email:     {'✅' if SMTP_EMAIL else '❌ Missing'}")
         st.caption(f"Repo docs: {len(repo_chunks)} chunks from {len(set(c['source'] for c in repo_chunks))} files")
     else:
-        total_files = len(set(c["source"] for c in all_chunks)) if all_chunks else 0
-        if all_chunks:
-            st.success(f"📂 {total_files} document(s) ready")
-        else:
-            st.info("Documents are being loaded.")
+        pass  # No document count shown to regular users
+
+    # ── Inquiry Counter — visible to ALL users ──
+    st.markdown("---")
+    inquiry_total = load_inquiry_count()
+    st.markdown(
+        f'<div class="inquiry-counter-card">'
+        f'<div class="counter-lbl">📋 Inquiries Submitted</div>'
+        f'<div class="counter-num">{inquiry_total}</div>'
+        f'<div class="counter-desc">Total requests to Gov Team</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
     st.caption("🔒 PetroApp — Governance Tool")
@@ -765,6 +858,7 @@ with tab2:
             with st.spinner("Sending your request..."):
                 ok, msg = send_request_email(req_name.strip(), req_email.strip(), req_details.strip())
             if ok:
+                increment_inquiry_count()
                 st.success("✅ Request submitted! A confirmation email has been sent to your inbox.")
             else:
                 st.error(f"Failed to send. Error: {msg}")
@@ -859,4 +953,3 @@ documents/
                     st.success("✅ Sent!") if ok else st.error("Failed.")
                 else:
                     st.error("Please fill all fields.")
-                    
