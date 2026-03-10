@@ -211,13 +211,18 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 .counter-desc { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 3px; }
 
 /* ── Option C: Chat Input Highlight ───────────────────────────────────── */
-section[data-testid="stBottom"] {
+[data-testid="stBottom"],
+section[data-testid="stBottom"],
+div[data-testid="stBottom"],
+.stChatFloatingInputContainer {
     background: linear-gradient(135deg, #1a3c8f 0%, #1a6cf5 100%) !important;
     padding: 14px 20px 14px 20px !important;
     border-radius: 14px 14px 0 0 !important;
     box-shadow: 0 -4px 20px rgba(26,108,245,0.2) !important;
 }
-section[data-testid="stBottom"]::before {
+[data-testid="stBottom"]::before,
+section[data-testid="stBottom"]::before,
+.stChatFloatingInputContainer::before {
     content: "🔍  Ask a question about your company Framework";
     display: block;
     color: rgba(255,255,255,0.85);
@@ -227,7 +232,8 @@ section[data-testid="stBottom"]::before {
     margin-bottom: 10px;
     font-family: 'Inter', sans-serif;
 }
-[data-testid="stChatInput"] > div {
+[data-testid="stChatInput"] > div,
+[data-testid="stChatInput"] > div > div {
     background: white !important;
     border-radius: 10px !important;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
@@ -236,6 +242,11 @@ section[data-testid="stBottom"]::before {
 [data-testid="stChatInput"] textarea {
     font-size: 15px !important;
     color: #333 !important;
+}
+.stChatInput {
+    background: white !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -649,6 +660,18 @@ with st.sidebar:
             del st.session_state[k]
         st.rerun()
 
+    # ── Inquiry Counter — visible to ALL users — TOP of sidebar ──
+    st.markdown("---")
+    inquiry_total = load_inquiry_count()
+    st.markdown(
+        f'<div class="inquiry-counter-card">'
+        f'<div class="counter-lbl">📋 Inquiries Submitted</div>'
+        f'<div class="counter-num">{inquiry_total}</div>'
+        f'<div class="counter-desc">Total requests to Gov Team</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
     st.markdown("---")
 
     if is_admin:
@@ -681,18 +704,6 @@ with st.sidebar:
         st.caption(f"Repo docs: {len(repo_chunks)} chunks from {len(set(c['source'] for c in repo_chunks))} files")
     else:
         pass  # No document count shown to regular users
-
-    # ── Inquiry Counter — visible to ALL users ──
-    st.markdown("---")
-    inquiry_total = load_inquiry_count()
-    st.markdown(
-        f'<div class="inquiry-counter-card">'
-        f'<div class="counter-lbl">📋 Inquiries Submitted</div>'
-        f'<div class="counter-num">{inquiry_total}</div>'
-        f'<div class="counter-desc">Total requests to Gov Team</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
 
     st.markdown("---")
     st.caption("🔒 PetroApp — Governance Tool")
