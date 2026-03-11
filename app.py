@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as st_components
 import anthropic
 import pdfplumber
 import pandas as pd
@@ -270,6 +271,7 @@ for key, val in {
     "pending_question":     None,
     "prefill_inquiry":      "",
     "uploaded_chunks":      [],
+    "goto_inquiry_tab":     False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -663,12 +665,52 @@ STRICT RULES:
     client   = anthropic.Anthropic(api_key=API_KEY)
     response = client.messages.create(
         model      = "claude-haiku-4-5-20251001",
-        max_tokens = 1024,
+        max_tokens = 3000,
         system     = system_prompt,
         messages   = [{"role": m["role"], "content": m["content"]} for m in messages_history]
     )
     return response.content[0].text
 
+
+def inject_option_c_style():
+    """Inject JS to style the floating chat input bar (Option C)."""
+    st_components.html("""
+    <script>
+    function styleBottom() {
+        var doc = window.parent.document;
+        var el = doc.querySelector('[data-testid="stBottom"]')
+               || doc.querySelector('.stChatFloatingInputContainer')
+               || doc.querySelector('[data-testid="stBottomBlockContainer"]');
+        if (el) {
+            el.style.background = 'linear-gradient(135deg, #1a3c8f 0%, #1a6cf5 100%)';
+            el.style.padding = '14px 20px 14px 20px';
+            el.style.borderRadius = '14px 14px 0 0';
+            el.style.boxShadow = '0 -4px 20px rgba(26,108,245,0.2)';
+            // Add label above input if not already added
+            if (!doc.getElementById('option-c-label')) {
+                var label = doc.createElement('div');
+                label.id = 'option-c-label';
+                label.innerText = '🔍  Ask a question about your company Framework';
+                label.style.cssText = 'color:rgba(255,255,255,0.9);font-size:13px;font-weight:700;letter-spacing:0.6px;margin-bottom:8px;font-family:Inter,sans-serif;';
+                el.insertBefore(label, el.firstChild);
+            }
+            // Style the inner input box
+            var inputBox = doc.querySelector('[data-testid="stChatInput"]');
+            if (inputBox) {
+                inputBox.style.background = 'white';
+                inputBox.style.borderRadius = '10px';
+                inputBox.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+            }
+            // Add padding to main content so last message isn't hidden
+            var main = doc.querySelector('.main .block-container');
+            if (main) main.style.paddingBottom = '120px';
+        } else {
+            setTimeout(styleBottom, 150);
+        }
+    }
+    styleBottom();
+    </script>
+    """, height=0)
 
 def is_not_found_answer(answer: str) -> bool:
     low = answer.lower()
@@ -794,6 +836,18 @@ tab1 = tab_objects[0]
 tab2 = tab_objects[1]
 tab3 = tab_objects[2] if is_admin else None
 
+# ── Auto-redirect to Inquiry tab if triggered from "Submit Request" button ──
+if st.session_state.get("goto_inquiry_tab"):
+    st.session_state.goto_inquiry_tab = False
+    st_components.html("""
+    <script>
+    setTimeout(function() {
+        var tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+        if (tabs.length > 1) { tabs[1].click(); }
+    }, 300);
+    </script>
+    """, height=0)
+
 # ════════════════════════════════════════════════════════════════════════════════
 # TAB 1 — Chat
 # ════════════════════════════════════════════════════════════════════════════════
@@ -826,16 +880,18 @@ with tab1:
                         user_q = st.session_state.messages[idx-1]["content"]
                     if st.button("📋 Submit Request to Gov Team", key=f"submit_gov_{idx}"):
                         st.session_state.prefill_inquiry = user_q
+                        st.session_state.goto_inquiry_tab = True
                         if SMTP_EMAIL and SMTP_PASSWORD:
                             send_qa_report_for_unanswered(
                                 st.session_state.user_email,
                                 st.session_state.user_name,
                                 user_q
                             )
-                        st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled.")
+                        st.rerun()
 
         # ── Chat input ──
         user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
+        inject_option_c_style()   # Style the floating input bar (Option C)
         question_to_process = user_input or st.session_state.get("pending_question")
 
         if question_to_process:
@@ -873,13 +929,14 @@ with tab1:
                             if is_not_found_answer(answer):
                                 if st.button("📋 Submit Request to Gov Team", key="submit_gov_new"):
                                     st.session_state.prefill_inquiry = question_to_process
+                                    st.session_state.goto_inquiry_tab = True
                                     if SMTP_EMAIL and SMTP_PASSWORD:
                                         send_qa_report_for_unanswered(
                                             st.session_state.user_email,
                                             st.session_state.user_name,
                                             question_to_process
                                         )
-                                    st.info("👉 Click the **'📋 New Request / Inquiry'** tab above — it's been pre-filled.")
+                                    st.rerun()
                         except Exception as e:
                             err_msg = str(e)
                             st.session_state.last_error = err_msg
