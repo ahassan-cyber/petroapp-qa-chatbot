@@ -19,12 +19,13 @@ TO_EMAIL        = "quality.assurance@petroapp.com"
 CC_EMAILS       = ["osama.adel@petroapp.com", "a.hassan@petroapp.com", "mohamed.yassin@petroapp.com"]
 DOCS_FOLDER        = "documents"
 FAQ_COUNTS_FILE    = "faq_counts.json"
-INQUIRY_COUNT_FILE = "inquiry_count.json"
+INQUIRY_COUNT_FILE   = "inquiry_count.json"
+QUESTIONS_COUNT_FILE = "questions_count.json"
 
 # RAG Settings
-CHUNK_SIZE     = 700   # words per chunk
-CHUNK_OVERLAP  = 80    # word overlap between chunks
-TOP_K_CHUNKS   = 10    # how many chunks to send to Claude per question
+CHUNK_SIZE     = 600   # words per chunk (smaller = more precise retrieval)
+CHUNK_OVERLAP  = 100   # word overlap between chunks (more overlap = better context continuity)
+TOP_K_CHUNKS   = 18    # how many chunks to send to Claude per question (raised for completeness)
 
 DEFAULT_FAQS = [
     "What is the process for business plan approval?",
@@ -225,12 +226,18 @@ section[data-testid="stBottom"]::before,
 .stChatFloatingInputContainer::before {
     content: "🔍  Ask a question about your company Framework";
     display: block;
-    color: rgba(255,255,255,0.85);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.9);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
     margin-bottom: 10px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+[data-testid="stChatInput"] textarea::placeholder {
+    font-family: 'Inter', -apple-system, sans-serif !important;
+    font-size: 14px !important;
+    color: #9ca3af !important;
 }
 [data-testid="stChatInput"] > div,
 [data-testid="stChatInput"] > div > div {
@@ -319,6 +326,25 @@ def increment_inquiry_count():
     count = load_inquiry_count() + 1
     try:
         with open(INQUIRY_COUNT_FILE, "w", encoding="utf-8") as f:
+            json.dump({"total": count}, f)
+    except Exception:
+        pass
+    return count
+
+def load_questions_count() -> int:
+    if os.path.exists(QUESTIONS_COUNT_FILE):
+        try:
+            with open(QUESTIONS_COUNT_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("total", 0)
+        except Exception:
+            pass
+    return 0
+
+def increment_questions_count():
+    count = load_questions_count() + 1
+    try:
+        with open(QUESTIONS_COUNT_FILE, "w", encoding="utf-8") as f:
             json.dump({"total": count}, f)
     except Exception:
         pass
@@ -428,30 +454,59 @@ def detect_category(question: str) -> str | None:
 
 def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUNKS) -> list:
     """
-    Score each chunk by keyword overlap + subfolder category boost.
+    Score each chunk using:
+    - Multi-word phrase matching (bigrams + trigrams)
+    - Single keyword overlap
+    - Subfolder category boost
+    - Source filename boost (if filename keywords match question)
     Returns top-k most relevant chunks in document order.
     """
     if not all_chunks:
         return []
 
-    q_words  = set(question.lower().split())
-    detected = detect_category(question)
-    scored   = []
+    q_lower   = question.lower()
+    q_words   = [w for w in q_lower.split() if len(w) > 2]   # skip short words
+    q_set     = set(q_words)
+    detected  = detect_category(question)
+
+    # Build bigrams and trigrams from question
+    q_bigrams  = {f"{q_words[i]} {q_words[i+1]}" for i in range(len(q_words)-1)}
+    q_trigrams = {f"{q_words[i]} {q_words[i+1]} {q_words[i+2]}" for i in range(len(q_words)-2)}
+
+    scored = []
 
     for i, chunk in enumerate(all_chunks):
-        chunk_words = set(chunk["text"].lower().split())
-        overlap     = len(q_words & chunk_words)
+        chunk_lower = chunk["text"].lower()
+        chunk_words = set(w for w in chunk_lower.split() if len(w) > 2)
 
-        # Boost if chunk belongs to the detected category's subfolder
+        # Single word overlap
+        word_score = len(q_set & chunk_words)
+
+        # Bigram bonus (phrase match = higher relevance)
+        bigram_score = sum(3 for bg in q_bigrams if bg in chunk_lower)
+
+        # Trigram bonus
+        trigram_score = sum(5 for tg in q_trigrams if tg in chunk_lower)
+
+        # Subfolder category boost
         cat_boost = 0
         if detected:
             subfolder = chunk.get("subfolder", "").lower()
             for key_sf, cats in SUBFOLDER_CATEGORY_MAP.items():
                 if key_sf in subfolder and detected in cats:
-                    cat_boost = 5
+                    cat_boost = 8
                     break
 
-        score = overlap + cat_boost
+        # Source filename boost (e.g. question mentions "DOA" and file has "DOA" in name)
+        filename_boost = 0
+        source_lower = chunk.get("source", "").lower()
+        for qw in q_words:
+            if qw in source_lower:
+                filename_boost += 3
+                break
+
+        score = word_score + bigram_score + trigram_score + cat_boost + filename_boost
+
         if score > 0:
             scored.append((score, i))
 
@@ -574,6 +629,15 @@ def call_claude(messages_history: list, all_chunks: list) -> str:
     system_prompt = f"""You are a precise assistant for the QA and Governance department at PetroApp.
 Your ONLY source of information is the document excerpts provided below. Do NOT use any external knowledge.
 
+LANGUAGE RULES (CRITICAL):
+- Detect the language of the user's question automatically.
+- If the question is in Arabic → answer fully in Arabic.
+- If the question is in English → answer fully in English.
+- If the question mixes both languages → answer in the dominant language.
+- IMPORTANT: The documents may be written in English even when the question is in Arabic.
+  You MUST still search the English documents and translate/present the answer in Arabic.
+  Never say "I could not find" just because the document language differs from the question language.
+
 STRICT RULES:
 1. Read the documents exactly as written. Never paraphrase, combine, or assume roles.
 2. When answering about tables (e.g., Develop / Endorse / Approve columns), list each column SEPARATELY
@@ -581,15 +645,16 @@ STRICT RULES:
 3. If a table has columns like [Decision | Develop | Endorse | Approve], read each row left to right
    and keep each column's value in the correct place.
 4. Do NOT include BOD (Board of Directors) level authorities unless the user explicitly asks about BOD.
-5. ALWAYS try your best to answer from the documents:
+5. ALWAYS provide COMPLETE answers — do not cut off or summarize important details.
+   If there are multiple steps, roles, or conditions — list ALL of them.
+6. ALWAYS try your best to answer from the documents:
    - First: look for an exact match.
    - If no exact match: find the NEAREST or MOST RELATED topic and share it, clearly stating it is the closest match.
-   - Only if truly nothing related exists: say "I could not find this information in the provided documents."
-6. Never leave the user with no information — always share the nearest relevant content you can find.
-7. Answer in the same language the user writes in (Arabic or English).
-8. Always end every response with:
----
-For further assistance, please contact the QA and Governance team directly.
+   - Only if truly nothing related exists: say the not-found message in the user's language.
+7. Never leave the user with no information — always share the nearest relevant content you can find.
+8. Always end every response with a separator line and this note in the user's language:
+   - English: "For further assistance, please contact the QA and Governance team directly."
+   - Arabic: "للمزيد من المساعدة، يرجى التواصل مع فريق الجودة والحوكمة مباشرةً."
 
 --- DOCUMENT EXCERPTS ---
 {document_context}
@@ -626,8 +691,8 @@ if not st.session_state.authenticated:
             unsafe_allow_html=True
         )
         with st.form("login_form"):
-            name  = st.text_input("Full Name",   placeholder="Ahmed Hassan")
-            email = st.text_input("Work Email",  placeholder="name@petroapp.com")
+            name  = st.text_input("Full Name",   placeholder="Your Full Name")
+            email = st.text_input("Work Email",  placeholder="Email@petroapp.com")
             login = st.form_submit_button("Sign In →", use_container_width=True)
 
         if login:
@@ -660,14 +725,14 @@ with st.sidebar:
             del st.session_state[k]
         st.rerun()
 
-    # ── Inquiry Counter — visible to ALL users — TOP of sidebar ──
+    # ── Questions Counter — visible to ALL users — TOP of sidebar ──
     st.markdown("---")
-    inquiry_total = load_inquiry_count()
+    questions_total = load_questions_count()
     st.markdown(
         f'<div class="inquiry-counter-card">'
-        f'<div class="counter-lbl">📋 Inquiries Submitted</div>'
-        f'<div class="counter-num">{inquiry_total}</div>'
-        f'<div class="counter-desc">Total requests to Gov Team</div>'
+        f'<div class="counter-lbl">💬 Questions Asked</div>'
+        f'<div class="counter-num">{questions_total}</div>'
+        f'<div class="counter-desc">Total questions from all visitors</div>'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -784,6 +849,7 @@ with tab1:
             else:
                 st.session_state.messages.append({"role": "user", "content": question_to_process})
                 track_question(question_to_process)
+                increment_questions_count()
 
                 with st.chat_message("user"):
                     st.write(question_to_process)
