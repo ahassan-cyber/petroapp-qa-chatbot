@@ -239,9 +239,20 @@ section[data-testid="stBottom"],
 div[data-testid="stBottom"],
 .stChatFloatingInputContainer {
     background: linear-gradient(135deg, #1a3c8f 0%, #1a6cf5 100%) !important;
-    padding: 6px 16px 6px 16px !important;
+    padding: 8px 14px !important;
     border-radius: 14px 14px 0 0 !important;
     box-shadow: 0 -4px 20px rgba(26,108,245,0.2) !important;
+}
+/* shrink the inner white textarea */
+[data-testid="stChatInput"] textarea {
+    font-size: 14px !important;
+    color: #333 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    min-height: 0 !important;
+    max-height: 44px !important;
+    overflow-y: hidden !important;
+    resize: none !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
     font-family: 'Inter', -apple-system, sans-serif !important;
@@ -252,17 +263,13 @@ div[data-testid="stBottom"],
 [data-testid="stChatInput"] > div > div {
     background: white !important;
     border-radius: 10px !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
     border: none !important;
-}
-[data-testid="stChatInput"] textarea {
-    font-size: 15px !important;
-    color: #333 !important;
+    min-height: 0 !important;
 }
 .stChatInput {
     background: white !important;
     border-radius: 10px !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -949,20 +956,15 @@ with tab1:
             with col_m:
                 st.markdown(f'<div class="onboard-title" style="text-align:center;padding:24px 0 16px 0">{title}</div>',
                             unsafe_allow_html=True)
-                # Category labels — show only selected language
-                _c_proc = "إجراء"       if is_ar else "Procedure"
-                _c_pol  = "سياسة"       if is_ar else "Policy"
-                _c_doa  = "صلاحيات"     if is_ar else "DOA / Authorities"
-                _c_sub_proc = "Procedure / SOP" if is_ar else "SOP"
-                _c_sub_pol  = "Policy"          if is_ar else ""
-                _c_sub_doa  = "DOA / Authorities" if is_ar else ""
+                # Category labels — show only selected language, no subtitle (equal card height)
+                _c_proc = "إجراء"           if is_ar else "Procedure"
+                _c_pol  = "سياسة"           if is_ar else "Policy"
+                _c_doa  = "صلاحيات"         if is_ar else "DOA / Authorities"
 
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    sub_html = f'<div class="cat-sub">{_c_sub_proc}</div>' if _c_sub_proc else ""
                     st.markdown(f"""<div class="cat-card">📋
                         <div class="cat-title">{_c_proc}</div>
-                        {sub_html}
                     </div>""", unsafe_allow_html=True)
                     if st.button(f"📋 {_c_proc}", use_container_width=True, key="cat_proc"):
                         st.session_state.chat_category = "procedure"
