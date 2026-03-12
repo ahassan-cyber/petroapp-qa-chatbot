@@ -239,22 +239,9 @@ section[data-testid="stBottom"],
 div[data-testid="stBottom"],
 .stChatFloatingInputContainer {
     background: linear-gradient(135deg, #1a3c8f 0%, #1a6cf5 100%) !important;
-    padding: 14px 20px 14px 20px !important;
+    padding: 6px 16px 6px 16px !important;
     border-radius: 14px 14px 0 0 !important;
     box-shadow: 0 -4px 20px rgba(26,108,245,0.2) !important;
-}
-[data-testid="stBottom"]::before,
-section[data-testid="stBottom"]::before,
-.stChatFloatingInputContainer::before {
-    content: "🔍  Ask a question about your company Framework";
-    display: block;
-    color: rgba(255,255,255,0.9);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    margin-bottom: 10px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 [data-testid="stChatInput"] textarea::placeholder {
     font-family: 'Inter', -apple-system, sans-serif !important;
@@ -689,20 +676,29 @@ def call_claude(messages_history: list, all_chunks: list,
 
     # Explicit language instruction
     if language == "arabic":
-        lang_rule = "The user has explicitly chosen ARABIC. You MUST respond entirely in Arabic, regardless of the document language."
+        lang_rule = (
+            "The user has explicitly chosen ARABIC. You MUST respond entirely in Arabic, "
+            "regardless of the document language. The documents may be in English — "
+            "read them, understand them, and present the answer fully in Arabic. "
+            "Never say 'I could not find' just because the document is in English."
+        )
     elif language == "english":
-        lang_rule = "The user has explicitly chosen ENGLISH. You MUST respond entirely in English."
+        lang_rule = (
+            "The user has explicitly chosen ENGLISH. You MUST respond entirely in English. "
+            "The documents may also be in English — read them and answer in English only. "
+            "Do NOT use Arabic in your response under any circumstances."
+        )
     else:
-        lang_rule = "Detect the language of the user's question automatically and respond in the same language."
+        lang_rule = (
+            "Detect the language of the user's question and respond in the same language. "
+            "If the question is in Arabic and the documents are in English, translate the answer to Arabic."
+        )
 
     system_prompt = f"""You are a precise assistant for the QA and Governance department at PetroApp.
 Your ONLY source of information is the document excerpts provided below. Do NOT use any external knowledge.
 
-LANGUAGE RULES (CRITICAL):
+LANGUAGE RULES (CRITICAL — follow exactly):
 - {lang_rule}
-- IMPORTANT: The documents may be written in English even when the question is in Arabic.
-  You MUST still search the English documents and translate/present the answer in Arabic.
-  Never say "I could not find" just because the document language differs from the question language.
 
 STRICT RULES:
 1. Read the documents exactly as written. Never paraphrase, combine, or assume roles.
@@ -925,11 +921,12 @@ with tab1:
 
         # ── STEP 1 — Language Picker ──────────────────────────────────────────
         if not _lang:
+            _display_name = st.session_state.get("user_name", "").split()[0] if st.session_state.get("user_name") else ""
             _, col_m, _ = st.columns([1, 2, 1])
             with col_m:
-                st.markdown("""
+                st.markdown(f"""
                 <div class="onboard-wrapper">
-                    <div class="onboard-title">مرحباً بك 👋 &nbsp; Welcome!</div>
+                    <div class="onboard-title">مرحباً {_display_name} 👋 &nbsp; Welcome, {_display_name}!</div>
                     <div class="onboard-sub">اختر لغتك المفضلة / Choose your preferred language</div>
                 </div>""", unsafe_allow_html=True)
                 c_ar, c_en = st.columns(2)
@@ -952,29 +949,36 @@ with tab1:
             with col_m:
                 st.markdown(f'<div class="onboard-title" style="text-align:center;padding:24px 0 16px 0">{title}</div>',
                             unsafe_allow_html=True)
+                # Category labels — show only selected language
+                _c_proc = "إجراء"       if is_ar else "Procedure"
+                _c_pol  = "سياسة"       if is_ar else "Policy"
+                _c_doa  = "صلاحيات"     if is_ar else "DOA / Authorities"
+                _c_sub_proc = "Procedure / SOP" if is_ar else "SOP"
+                _c_sub_pol  = "Policy"          if is_ar else ""
+                _c_sub_doa  = "DOA / Authorities" if is_ar else ""
+
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    st.markdown("""<div class="cat-card">📋
-                        <div class="cat-title">إجراء</div>
-                        <div class="cat-sub">Procedure / SOP</div>
+                    sub_html = f'<div class="cat-sub">{_c_sub_proc}</div>' if _c_sub_proc else ""
+                    st.markdown(f"""<div class="cat-card">📋
+                        <div class="cat-title">{_c_proc}</div>
+                        {sub_html}
                     </div>""", unsafe_allow_html=True)
-                    if st.button("📋 إجراء / Procedure", use_container_width=True, key="cat_proc"):
+                    if st.button(f"📋 {_c_proc}", use_container_width=True, key="cat_proc"):
                         st.session_state.chat_category = "procedure"
                         st.rerun()
                 with c2:
-                    st.markdown("""<div class="cat-card">📜
-                        <div class="cat-title">سياسة</div>
-                        <div class="cat-sub">Policy</div>
+                    st.markdown(f"""<div class="cat-card">📜
+                        <div class="cat-title">{_c_pol}</div>
                     </div>""", unsafe_allow_html=True)
-                    if st.button("📜 سياسة / Policy", use_container_width=True, key="cat_pol"):
+                    if st.button(f"📜 {_c_pol}", use_container_width=True, key="cat_pol"):
                         st.session_state.chat_category = "policy"
                         st.rerun()
                 with c3:
-                    st.markdown("""<div class="cat-card">🏛️
-                        <div class="cat-title">صلاحيات</div>
-                        <div class="cat-sub">DOA / Authorities</div>
+                    st.markdown(f"""<div class="cat-card">🏛️
+                        <div class="cat-title">{_c_doa}</div>
                     </div>""", unsafe_allow_html=True)
-                    if st.button("🏛️ صلاحيات / DOA", use_container_width=True, key="cat_doa"):
+                    if st.button(f"🏛️ {_c_doa}", use_container_width=True, key="cat_doa"):
                         st.session_state.chat_category = "doa"
                         st.rerun()
                 st.markdown("")
