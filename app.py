@@ -105,6 +105,14 @@ SUBFOLDER_CATEGORY_MAP = {
     "sops/it":                  ["it"],
 }
 
+# Category → which subfolders to search (for onboarding filter)
+CATEGORY_SUBFOLDERS = {
+    "procedure": ["sops/"],
+    "policy":    ["policies/hr", "policies/sales", "policies/finance",
+                  "policies/it", "policies/general"],
+    "doa":       ["policies/doa"],
+}
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PetroApp — Governance Tool",
@@ -212,6 +220,19 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 .counter-num  { font-size: 36px; font-weight: 800; line-height: 1; }
 .counter-desc { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 3px; }
 
+/* ── Onboarding ────────────────────────────────────────────────────── */
+.onboard-wrapper { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:52vh; gap:12px; animation:fadeSlideIn .5s ease-out; }
+.onboard-title { font-size:26px; font-weight:800; color:#1e3a8a; text-align:center; margin-bottom:4px; }
+.onboard-sub { font-size:14px; color:#64748b; text-align:center; margin-bottom:12px; }
+.lang-card { background:white; border:2px solid #e2e8f0; border-radius:16px; padding:22px 16px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.07); font-size:38px; margin-bottom:6px; }
+.cat-card  { background:white; border:2px solid #e2e8f0; border-radius:16px; padding:18px 12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.07); font-size:30px; margin-bottom:6px; }
+.cat-title { font-size:15px; font-weight:700; color:#1e3a8a; margin:6px 0 2px 0; }
+.cat-sub   { font-size:12px; color:#64748b; }
+.search-ctx-badge { background:#e8f0fe; border:1px solid #bfdbfe; border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; color:#1e40af; display:inline-block; margin-bottom:8px; }
+.source-card { background:#f8faff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 14px; margin-top:8px; font-size:12px; color:#1e40af; }
+.source-file { font-weight:600; }
+.source-path { color:#64748b; font-size:11px; }
+
 /* ── Option C: Chat Input Highlight ───────────────────────────────────── */
 [data-testid="stBottom"],
 section[data-testid="stBottom"],
@@ -272,6 +293,9 @@ for key, val in {
     "prefill_inquiry":      "",
     "uploaded_chunks":      [],
     "goto_inquiry_tab":     False,
+    "chat_language":        None,
+    "chat_category":        None,
+    "search_all_cats":      False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -367,8 +391,36 @@ def extract_text(file, filename: str = "") -> str:
                         text += t + "\n"
         elif name.endswith(".docx"):
             doc = Document(file)
+            # ── Paragraphs ──
             for para in doc.paragraphs:
-                text += para.text + "\n"
+                if para.text.strip():
+                    text += para.text + "\n"
+            # ── Tables — format each row as: Header: Value | Header: Value ──
+            for table in doc.tables:
+                if not table.rows:
+                    continue
+                # Build unique header list (Word repeats merged cell text)
+                raw_headers = [cell.text.strip() for cell in table.rows[0].cells]
+                seen_h, headers = [], []
+                for h in raw_headers:
+                    if h and h not in seen_h:
+                        seen_h.append(h)
+                        headers.append(h)
+                    else:
+                        headers.append("")   # duplicate / empty — skip in output
+
+                for row in table.rows[1:]:
+                    cells = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+                    row_parts = []
+                    seen_vals = set()
+                    for h, v in zip(headers, cells):
+                        if not v or v in seen_vals:
+                            continue          # skip empty or repeated merged values
+                        seen_vals.add(v)
+                        row_parts.append(f"{h}: {v}" if h else v)
+                    if row_parts:
+                        text += " | ".join(row_parts) + "\n"
+                text += "\n"
         elif name.endswith(".xlsx"):
             df_dict = pd.read_excel(file, sheet_name=None)
             for sheet_name, df in df_dict.items():
@@ -454,17 +506,22 @@ def detect_category(question: str) -> str | None:
     return best if scores[best] > 0 else None
 
 
-def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUNKS) -> list:
+def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUNKS,
+                        forced_subfolders: list = None) -> list:
     """
-    Score each chunk using:
-    - Multi-word phrase matching (bigrams + trigrams)
-    - Single keyword overlap
-    - Subfolder category boost
-    - Source filename boost (if filename keywords match question)
-    Returns top-k most relevant chunks in document order.
+    Score each chunk using bigrams/trigrams + category boost + filename boost.
+    forced_subfolders: if set, only search within those subfolder prefixes.
     """
     if not all_chunks:
         return []
+
+    # Filter to forced subfolders if specified
+    search_pool = all_chunks
+    if forced_subfolders:
+        filtered = [c for c in all_chunks
+                    if any(sf in c.get("subfolder", "") for sf in forced_subfolders)]
+        if filtered:
+            search_pool = filtered
 
     q_lower   = question.lower()
     q_words   = [w for w in q_lower.split() if len(w) > 2]   # skip short words
@@ -477,7 +534,7 @@ def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUN
 
     scored = []
 
-    for i, chunk in enumerate(all_chunks):
+    for i, chunk in enumerate(search_pool):
         chunk_lower = chunk["text"].lower()
         chunk_words = set(w for w in chunk_lower.split() if len(w) > 2)
 
@@ -515,11 +572,10 @@ def get_relevant_chunks(question: str, all_chunks: list, top_k: int = TOP_K_CHUN
     scored.sort(reverse=True)
     top_indices = sorted([i for _, i in scored[:top_k]])
 
-    # If nothing scored, fall back to first top_k chunks
     if not top_indices:
-        top_indices = list(range(min(top_k, len(all_chunks))))
+        top_indices = list(range(min(top_k, len(search_pool))))
 
-    return [all_chunks[i] for i in top_indices]
+    return [search_pool[i] for i in top_indices]
 
 
 def chunks_to_context(chunks: list) -> str:
@@ -615,27 +671,35 @@ def send_qa_report_for_unanswered(user_email, user_name, question):
 # ══════════════════════════════════════════════════════════════════════════════
 # CLAUDE API CALL — SMART RAG
 # ══════════════════════════════════════════════════════════════════════════════
-def call_claude(messages_history: list, all_chunks: list) -> str:
-    # Get the latest user question for chunk selection
+def call_claude(messages_history: list, all_chunks: list,
+                language: str = None, category: str = None) -> tuple:
+    """Returns (answer_text, relevant_chunks_list)."""
     latest_q = ""
     for msg in reversed(messages_history):
         if msg["role"] == "user":
             latest_q = msg["content"]
             break
 
-    # Select relevant chunks
-    relevant = get_relevant_chunks(latest_q, all_chunks, TOP_K_CHUNKS)
+    # Forced subfolder filter based on selected category
+    forced_sf = CATEGORY_SUBFOLDERS.get(category) if category else None
+    relevant  = get_relevant_chunks(latest_q, all_chunks, TOP_K_CHUNKS,
+                                    forced_subfolders=forced_sf)
     document_context = chunks_to_context(relevant)
-    detected_cat = detect_category(latest_q)
+    detected_cat     = detect_category(latest_q)
+
+    # Explicit language instruction
+    if language == "arabic":
+        lang_rule = "The user has explicitly chosen ARABIC. You MUST respond entirely in Arabic, regardless of the document language."
+    elif language == "english":
+        lang_rule = "The user has explicitly chosen ENGLISH. You MUST respond entirely in English."
+    else:
+        lang_rule = "Detect the language of the user's question automatically and respond in the same language."
 
     system_prompt = f"""You are a precise assistant for the QA and Governance department at PetroApp.
 Your ONLY source of information is the document excerpts provided below. Do NOT use any external knowledge.
 
 LANGUAGE RULES (CRITICAL):
-- Detect the language of the user's question automatically.
-- If the question is in Arabic → answer fully in Arabic.
-- If the question is in English → answer fully in English.
-- If the question mixes both languages → answer in the dominant language.
+- {lang_rule}
 - IMPORTANT: The documents may be written in English even when the question is in Arabic.
   You MUST still search the English documents and translate/present the answer in Arabic.
   Never say "I could not find" just because the document language differs from the question language.
@@ -669,7 +733,7 @@ STRICT RULES:
         system     = system_prompt,
         messages   = [{"role": m["role"], "content": m["content"]} for m in messages_history]
     )
-    return response.content[0].text
+    return response.content[0].text, relevant
 
 
 def inject_option_c_style():
@@ -767,6 +831,7 @@ with st.sidebar:
             del st.session_state[k]
         st.rerun()
 
+
     # ── Questions Counter — visible to ALL users — TOP of sidebar ──
     st.markdown("---")
     questions_total = load_questions_count()
@@ -849,113 +914,235 @@ if st.session_state.get("goto_inquiry_tab"):
     """, height=0)
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 1 — Chat
+# TAB 1 — Chat  (Onboarding → Language → Category → Chat)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab1:
     if not all_chunks:
         st.info("📂 No documents loaded yet. Please contact the admin.")
     else:
-        total_files = len(set(c["source"] for c in all_chunks))
-        st.caption(f"🔍 Smart search across {total_files} document(s) — {len(all_chunks)} indexed chunks")
+        _lang = st.session_state.get("chat_language")
+        _cat  = st.session_state.get("chat_category")
 
-        # ── Dynamic Quick Questions ──
-        dynamic_faqs = get_dynamic_faqs(5)
-        st.markdown("**💡 Most Asked Questions:**")
-        cols = st.columns(len(dynamic_faqs))
-        for i, faq in enumerate(dynamic_faqs):
-            with cols[i]:
-                if st.button(faq, key=f"faq_{i}", use_container_width=True):
-                    st.session_state.pending_question = faq
-                    st.rerun()
-
-        st.markdown("---")
-
-        # ── Chat history ──
-        for idx, msg in enumerate(st.session_state.messages):
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
-                if msg["role"] == "assistant" and is_not_found_answer(msg["content"]):
-                    user_q = ""
-                    if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
-                        user_q = st.session_state.messages[idx-1]["content"]
-                    if st.button("📋 Submit Request to Gov Team", key=f"submit_gov_{idx}"):
-                        st.session_state.prefill_inquiry = user_q
-                        st.session_state.goto_inquiry_tab = True
-                        if SMTP_EMAIL and SMTP_PASSWORD:
-                            send_qa_report_for_unanswered(
-                                st.session_state.user_email,
-                                st.session_state.user_name,
-                                user_q
-                            )
+        # ── STEP 1 — Language Picker ──────────────────────────────────────────
+        if not _lang:
+            _, col_m, _ = st.columns([1, 2, 1])
+            with col_m:
+                st.markdown("""
+                <div class="onboard-wrapper">
+                    <div class="onboard-title">مرحباً بك 👋 &nbsp; Welcome!</div>
+                    <div class="onboard-sub">اختر لغتك المفضلة / Choose your preferred language</div>
+                </div>""", unsafe_allow_html=True)
+                c_ar, c_en = st.columns(2)
+                with c_ar:
+                    st.markdown('<div class="lang-card">🇸🇦</div>', unsafe_allow_html=True)
+                    if st.button("العربية", use_container_width=True, key="lang_ar"):
+                        st.session_state.chat_language = "arabic"
+                        st.rerun()
+                with c_en:
+                    st.markdown('<div class="lang-card">🇬🇧</div>', unsafe_allow_html=True)
+                    if st.button("English", use_container_width=True, key="lang_en"):
+                        st.session_state.chat_language = "english"
                         st.rerun()
 
-        # ── Chat input ──
-        user_input = st.chat_input("Ask a question about Policies, Procedures, or DOA...")
-        inject_option_c_style()   # Style the floating input bar (Option C)
-        question_to_process = user_input or st.session_state.get("pending_question")
+        # ── STEP 2 — Category Picker ──────────────────────────────────────────
+        elif not _cat:
+            is_ar = (_lang == "arabic")
+            title = "بتدور على إيه؟" if is_ar else "What are you looking for?"
+            _, col_m, _ = st.columns([0.3, 3, 0.3])
+            with col_m:
+                st.markdown(f'<div class="onboard-title" style="text-align:center;padding:24px 0 16px 0">{title}</div>',
+                            unsafe_allow_html=True)
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.markdown("""<div class="cat-card">📋
+                        <div class="cat-title">إجراء</div>
+                        <div class="cat-sub">Procedure / SOP</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button("📋 إجراء / Procedure", use_container_width=True, key="cat_proc"):
+                        st.session_state.chat_category = "procedure"
+                        st.rerun()
+                with c2:
+                    st.markdown("""<div class="cat-card">📜
+                        <div class="cat-title">سياسة</div>
+                        <div class="cat-sub">Policy</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button("📜 سياسة / Policy", use_container_width=True, key="cat_pol"):
+                        st.session_state.chat_category = "policy"
+                        st.rerun()
+                with c3:
+                    st.markdown("""<div class="cat-card">🏛️
+                        <div class="cat-title">صلاحيات</div>
+                        <div class="cat-sub">DOA / Authorities</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button("🏛️ صلاحيات / DOA", use_container_width=True, key="cat_doa"):
+                        st.session_state.chat_category = "doa"
+                        st.rerun()
+                st.markdown("")
+                back_lbl = "← تغيير اللغة" if is_ar else "← Change Language"
+                if st.button(back_lbl, key="back_to_lang"):
+                    st.session_state.chat_language = None
+                    st.rerun()
 
-        if question_to_process:
-            if st.session_state.get("pending_question"):
+        # ── STEP 3 — Chat Interface ───────────────────────────────────────────
+        else:
+            is_ar = (_lang == "arabic")
+            cat_labels = {
+                "procedure": ("📋 إجراءات", "📋 Procedures"),
+                "policy":    ("📜 سياسات",  "📜 Policies"),
+                "doa":       ("🏛️ صلاحيات", "🏛️ DOA"),
+            }
+            cat_lbl = cat_labels.get(_cat, ("", ""))[0 if is_ar else 1]
+
+            # Context badge + change buttons
+            col_badge, col_chg = st.columns([4, 1])
+            with col_badge:
+                scope = "كل الأقسام" if st.session_state.get("search_all_cats") else cat_lbl
+                st.markdown(f'<span class="search-ctx-badge">🔍 {scope}</span>', unsafe_allow_html=True)
+            with col_chg:
+                chg_lbl = "تغيير القسم" if is_ar else "Change"
+                if st.button(chg_lbl, key="change_cat"):
+                    st.session_state.chat_category   = None
+                    st.session_state.search_all_cats = False
+                    st.session_state.messages        = []
+                    st.rerun()
+
+            st.markdown("---")
+
+            # ── Chat history ──
+            for idx, msg in enumerate(st.session_state.messages):
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
+
+                    # Source reference card
+                    if msg["role"] == "assistant" and msg.get("sources"):
+                        src_html = '<div class="source-card">📄 '
+                        src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
+                        for src, sf in msg["sources"]:
+                            src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
+                        src_html += '</div>'
+                        st.markdown(src_html, unsafe_allow_html=True)
+
+                    # Not-found actions
+                    if msg["role"] == "assistant" and is_not_found_answer(msg["content"]):
+                        user_q = ""
+                        if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
+                            user_q = st.session_state.messages[idx-1]["content"]
+
+                        if not st.session_state.get("search_all_cats"):
+                            fallback_lbl = ("🔄 دور في كل الأقسام" if is_ar
+                                            else "🔄 Search all categories")
+                            if st.button(fallback_lbl, key=f"fallback_{idx}"):
+                                st.session_state.search_all_cats  = True
+                                st.session_state.pending_question = user_q
+                                st.rerun()
+
+                        submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
+                        if st.button(submit_lbl, key=f"submit_gov_{idx}"):
+                            st.session_state.prefill_inquiry   = user_q
+                            st.session_state.goto_inquiry_tab  = True
+                            if SMTP_EMAIL and SMTP_PASSWORD:
+                                send_qa_report_for_unanswered(
+                                    st.session_state.user_email,
+                                    st.session_state.user_name, user_q)
+                            st.rerun()
+
+            # ── Process pending question ──
+            question_to_process = st.session_state.get("pending_question")
+            if question_to_process:
                 st.session_state.pending_question = None
 
-            if not API_KEY:
-                err = "Claude API Key is not configured. Please contact the admin."
-                st.error(err)
-                st.session_state.last_error = err
-            else:
-                st.session_state.messages.append({"role": "user", "content": question_to_process})
-                track_question(question_to_process)
-                increment_questions_count()
-
-                with st.chat_message("user"):
-                    st.write(question_to_process)
-
-                with st.chat_message("assistant"):
-                    with st.spinner("Searching documents..."):
-                        try:
-                            answer = call_claude(st.session_state.messages, all_chunks)
-                            st.write(answer)
-                            st.session_state.messages.append({"role": "assistant", "content": answer})
-                            st.session_state.last_error = None
-
-                            # Show detected category info
-                            detected = detect_category(question_to_process)
-                            if detected:
-                                st.markdown(
-                                    f'<div class="chunk-info">🔍 Auto-detected category: <strong>{detected.upper()}</strong> — searched most relevant excerpts</div>',
-                                    unsafe_allow_html=True
-                                )
-
-                            if is_not_found_answer(answer):
-                                if st.button("📋 Submit Request to Gov Team", key="submit_gov_new"):
-                                    st.session_state.prefill_inquiry = question_to_process
-                                    st.session_state.goto_inquiry_tab = True
-                                    if SMTP_EMAIL and SMTP_PASSWORD:
-                                        send_qa_report_for_unanswered(
-                                            st.session_state.user_email,
-                                            st.session_state.user_name,
-                                            question_to_process
-                                        )
-                                    st.rerun()
-                        except Exception as e:
-                            err_msg = str(e)
-                            st.session_state.last_error = err_msg
-                            st.markdown(
-                                f'<div class="error-card"><strong>⚠️ Something went wrong</strong><br>'
-                                f'<small style="color:#666;">{err_msg}</small></div>',
-                                unsafe_allow_html=True
-                            )
-
-        if st.session_state.last_error:
-            st.markdown("---")
-            if st.button("🚨 Report this error to Admin"):
-                if SMTP_EMAIL and SMTP_PASSWORD:
-                    ok, _ = send_error_report(st.session_state.user_email, st.session_state.last_error)
-                    st.success("✅ Error reported!") if ok else st.error("Could not send. Contact a.hassan@petroapp.com")
-                    if ok:
-                        st.session_state.last_error = None
+                if not API_KEY:
+                    st.error("Claude API Key is not configured. Please contact the admin.")
                 else:
-                    st.warning("Email not configured. Contact a.hassan@petroapp.com directly.")
+                    st.session_state.messages.append({"role": "user", "content": question_to_process})
+                    track_question(question_to_process)
+                    increment_questions_count()
+
+                    with st.chat_message("user"):
+                        st.write(question_to_process)
+
+                    with st.chat_message("assistant"):
+                        with st.spinner("Searching documents..." if not is_ar else "جاري البحث..."):
+                            try:
+                                active_cat = None if st.session_state.get("search_all_cats") else _cat
+                                answer, relevant = call_claude(
+                                    st.session_state.messages, all_chunks,
+                                    language=_lang, category=active_cat
+                                )
+                                st.write(answer)
+
+                                # Unique sources list
+                                seen, sources = set(), []
+                                for c in relevant:
+                                    if c["source"] not in seen:
+                                        seen.add(c["source"])
+                                        sources.append((c["source"], c["subfolder"]))
+                                sources = sources[:3]
+
+                                # Show source card
+                                if sources:
+                                    src_html = '<div class="source-card">📄 '
+                                    src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
+                                    for src, sf in sources:
+                                        src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
+                                    src_html += '</div>'
+                                    st.markdown(src_html, unsafe_allow_html=True)
+
+                                st.session_state.messages.append({
+                                    "role": "assistant", "content": answer, "sources": sources
+                                })
+                                st.session_state.last_error     = None
+                                st.session_state.search_all_cats = False
+
+                                if is_not_found_answer(answer):
+                                    if not st.session_state.get("search_all_cats"):
+                                        fallback_lbl = ("🔄 دور في كل الأقسام" if is_ar
+                                                        else "🔄 Search all categories")
+                                        if st.button(fallback_lbl, key="fallback_new"):
+                                            st.session_state.search_all_cats  = True
+                                            st.session_state.pending_question = question_to_process
+                                            st.rerun()
+
+                                    submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
+                                    if st.button(submit_lbl, key="submit_gov_new"):
+                                        st.session_state.prefill_inquiry  = question_to_process
+                                        st.session_state.goto_inquiry_tab = True
+                                        if SMTP_EMAIL and SMTP_PASSWORD:
+                                            send_qa_report_for_unanswered(
+                                                st.session_state.user_email,
+                                                st.session_state.user_name, question_to_process)
+                                        st.rerun()
+
+                            except Exception as e:
+                                err_msg = str(e)
+                                st.session_state.last_error = err_msg
+                                st.markdown(
+                                    f'<div class="error-card"><strong>⚠️ Something went wrong</strong><br>'
+                                    f'<small style="color:#666;">{err_msg}</small></div>',
+                                    unsafe_allow_html=True)
+
+            if st.session_state.last_error:
+                st.markdown("---")
+                if st.button("🚨 Report this error to Admin"):
+                    if SMTP_EMAIL and SMTP_PASSWORD:
+                        ok, _ = send_error_report(st.session_state.user_email, st.session_state.last_error)
+                        st.success("✅ Error reported!") if ok else st.error("Could not send. Contact a.hassan@petroapp.com")
+                        if ok:
+                            st.session_state.last_error = None
+                    else:
+                        st.warning("Email not configured. Contact a.hassan@petroapp.com directly.")
+
+# ── Floating Chat Input — outside tab, fixed at page bottom ──────────────────
+if (st.session_state.get("authenticated") and
+        st.session_state.get("chat_language") and
+        st.session_state.get("chat_category")):
+    _is_ar = (st.session_state.get("chat_language") == "arabic")
+    _ph    = "اكتب سؤالك هنا..." if _is_ar else "Ask a question about Policies, Procedures, or DOA..."
+    _user_input = st.chat_input(_ph)
+    inject_option_c_style()
+    if _user_input:
+        st.session_state.pending_question = _user_input
+        st.rerun()
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TAB 2 — New Request / Inquiry
