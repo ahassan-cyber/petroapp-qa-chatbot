@@ -184,7 +184,7 @@ st.markdown("""
 .login-sub   { font-size:14px; color:#2080E5; font-weight:500; margin-bottom:4px; text-align:center; }
 .login-restricted { font-size:12px; color:#94a3b8; margin-bottom:28px; text-align:center; }
 
-.petroapp-header { background:linear-gradient(90deg,#1B4FD8,#2080E5,#3b82f6); padding:14px 24px; border-radius:14px; margin-bottom:20px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 20px rgba(32,128,229,.25); }
+.petroapp-header { background:linear-gradient(90deg,#1B4FD8,#2080E5,#3b82f6); padding:14px 24px; border-radius:14px; margin-bottom:8px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 20px rgba(32,128,229,.25); }
 .header-logo { width:52px; height:52px; background:white; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:4px; overflow:hidden; }
 .header-title h1 { color:white; font-size:20px; margin:0; font-weight:700; }
 .header-title p  { color:rgba(255,255,255,.75); font-size:12px; margin:2px 0 0 0; }
@@ -260,31 +260,25 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
     line-height: 1.5;
 }
 
-/* ══ FORCE LIGHT MODE — override dark mode for entire app ══════════════ */
+/* ══ FORCE LIGHT MODE — surgical overrides only ════════════════════════ */
 
-/* App background */
-.stApp, section.main, section.main > div {
-    background-color: #f0f4ff !important;
+/* App + main background */
+.stApp { background-color: #f0f4ff !important; }
+section.main, section.main > div { background-color: #f0f4ff !important; }
+
+/* Sidebar background only — no text override (preserves white text on colored cards) */
+section[data-testid="stSidebar"] { background-color: #f0f5ff !important; }
+section[data-testid="stSidebar"] > div { background-color: #f0f5ff !important; }
+
+/* Sidebar plain text (captions, labels) — but NOT inside colored cards */
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] .stMarkdown > p {
     color: #1e293b !important;
 }
 
-/* All markdown text containers */
-[data-testid="stMarkdownContainer"],
-[data-testid="stMarkdownContainer"] p,
-[data-testid="stMarkdownContainer"] li,
-[data-testid="stMarkdownContainer"] span,
-[data-testid="stMarkdownContainer"] h1,
-[data-testid="stMarkdownContainer"] h2,
-[data-testid="stMarkdownContainer"] h3,
-[data-testid="stMarkdownContainer"] strong,
-[data-testid="stMarkdownContainer"] em {
-    color: #1e293b !important;
-}
-
-/* Onboarding cards — always white background with dark text */
+/* Onboarding cards — always white background */
 .lang-card, .cat-card {
     background: #ffffff !important;
-    color: #1e293b !important;
     border: 2px solid #e2e8f0 !important;
 }
 .onboard-title { color: #1e3a8a !important; }
@@ -292,16 +286,12 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 .cat-title     { color: #1e3a8a !important; }
 .cat-sub       { color: #64748b !important; }
 
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    background: transparent !important;
-}
+/* Login page text */
+.login-title { color: #1e3a8a !important; }
+.login-sub   { color: #2080E5 !important; }
+.login-restricted { color: #94a3b8 !important; }
 
-/* Input fields */
-input[type="text"], input[type="email"], textarea {
-    background-color: #ffffff !important;
-    color: #1e293b !important;
-}
+/* Input fields — always white bg + dark text */
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea {
     background-color: #ffffff !important;
@@ -325,21 +315,9 @@ input[type="text"], input[type="email"], textarea {
     color: #1e293b !important;
 }
 
-/* Chat input box (bottom bar) */
+/* Chat input textarea */
 [data-testid="stChatInput"] textarea {
     background-color: #ffffff !important;
-    color: #1e293b !important;
-}
-
-/* Block container */
-[data-testid="block-container"] {
-    background-color: transparent !important;
-}
-
-/* Sidebar always light */
-section[data-testid="stSidebar"],
-section[data-testid="stSidebar"] * {
-    background-color: #f0f5ff !important;
     color: #1e293b !important;
 }
 
