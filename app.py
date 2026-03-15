@@ -379,6 +379,7 @@ for key, val in {
     "chat_category":        None,
     "search_all_cats":      False,
     "show_sent_toast":      False,
+    "_pending_gov_submit":  None,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -1024,7 +1025,23 @@ if st.session_state.get("goto_inquiry_tab"):
 # TAB 1 — Chat  (Onboarding → Language → Category → Chat)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab1:
-    # Show sent confirmation toast if triggered
+    # ── Deferred gov-submit execution (fixes single-click issue) ─────────────
+    # The button only sets the flag; execution happens here at the TOP of the
+    # next render cycle — after Streamlit has fully captured the click state.
+    if st.session_state.get("_pending_gov_submit"):
+        _q_to_send = st.session_state["_pending_gov_submit"]
+        st.session_state["_pending_gov_submit"] = None
+        if SMTP_EMAIL and SMTP_PASSWORD:
+            send_qa_report_for_unanswered(
+                st.session_state.user_email,
+                st.session_state.user_name, _q_to_send)
+        _tl = st.session_state.get("chat_language")
+        _tm = ("✅ تم إرسال طلبك بنجاح! سيتواصل معك فريق الحوكمة قريباً."
+               if _tl == "arabic"
+               else "✅ Request sent successfully! The Governance team will follow up with you.")
+        st.toast(_tm)
+
+    # Show sent confirmation toast if triggered (legacy flag — keep for safety)
     if st.session_state.get("show_sent_toast"):
         _toast_lang = st.session_state.get("chat_language")
         _toast_msg  = ("✅ تم إرسال طلبك بنجاح! سيتواصل معك فريق الحوكمة قريباً."
@@ -1159,13 +1176,7 @@ with tab1:
 
                         submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
                         if st.button(submit_lbl, key=f"submit_gov_{idx}"):
-                            st.session_state.prefill_inquiry   = user_q
-                            st.session_state.goto_inquiry_tab  = True
-                            st.session_state.show_sent_toast   = True
-                            if SMTP_EMAIL and SMTP_PASSWORD:
-                                send_qa_report_for_unanswered(
-                                    st.session_state.user_email,
-                                    st.session_state.user_name, user_q)
+                            st.session_state["_pending_gov_submit"] = user_q
                             st.rerun()
 
             # ── Process pending question ──
@@ -1228,13 +1239,7 @@ with tab1:
 
                                     submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
                                     if st.button(submit_lbl, key="submit_gov_new"):
-                                        st.session_state.prefill_inquiry  = question_to_process
-                                        st.session_state.goto_inquiry_tab = True
-                                        st.session_state.show_sent_toast  = True
-                                        if SMTP_EMAIL and SMTP_PASSWORD:
-                                            send_qa_report_for_unanswered(
-                                                st.session_state.user_email,
-                                                st.session_state.user_name, question_to_process)
+                                        st.session_state["_pending_gov_submit"] = question_to_process
                                         st.rerun()
 
                             except Exception as e:
