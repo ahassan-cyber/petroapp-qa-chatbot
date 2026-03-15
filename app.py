@@ -1160,13 +1160,14 @@ with tab1:
                             st.markdown(src_html, unsafe_allow_html=True)
                         st.markdown(disclaimer_html(is_ar), unsafe_allow_html=True)
 
-                    # Not-found actions
-                    if msg["role"] == "assistant" and is_not_found_answer(msg["content"]):
+                    # Not-found actions + always-visible submit button
+                    if msg["role"] == "assistant":
                         user_q = ""
                         if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
                             user_q = st.session_state.messages[idx-1]["content"]
 
-                        if not st.session_state.get("search_all_cats"):
+                        # Search all categories — only on not-found answers
+                        if is_not_found_answer(msg["content"]) and not st.session_state.get("search_all_cats"):
                             fallback_lbl = ("🔄 دور في كل الأقسام" if is_ar
                                             else "🔄 Search all categories")
                             if st.button(fallback_lbl, key=f"fallback_{idx}"):
@@ -1174,6 +1175,7 @@ with tab1:
                                 st.session_state.pending_question = user_q
                                 st.rerun()
 
+                        # Submit to Gov Team — always visible after every answer
                         submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
                         if st.button(submit_lbl, key=f"submit_gov_{idx}"):
                             st.session_state["_pending_gov_submit"] = user_q
@@ -1228,19 +1230,20 @@ with tab1:
                                 st.session_state.last_error     = None
                                 st.session_state.search_all_cats = False
 
-                                if is_not_found_answer(answer):
-                                    if not st.session_state.get("search_all_cats"):
-                                        fallback_lbl = ("🔄 دور في كل الأقسام" if is_ar
-                                                        else "🔄 Search all categories")
-                                        if st.button(fallback_lbl, key="fallback_new"):
-                                            st.session_state.search_all_cats  = True
-                                            st.session_state.pending_question = question_to_process
-                                            st.rerun()
-
-                                    submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
-                                    if st.button(submit_lbl, key="submit_gov_new"):
-                                        st.session_state["_pending_gov_submit"] = question_to_process
+                                # Search all categories — only on not-found answers
+                                if is_not_found_answer(answer) and not st.session_state.get("search_all_cats"):
+                                    fallback_lbl = ("🔄 دور في كل الأقسام" if is_ar
+                                                    else "🔄 Search all categories")
+                                    if st.button(fallback_lbl, key="fallback_new"):
+                                        st.session_state.search_all_cats  = True
+                                        st.session_state.pending_question = question_to_process
                                         st.rerun()
+
+                                # Submit to Gov Team — always visible after every answer
+                                submit_lbl = "📋 ابعت للـ Gov Team" if is_ar else "📋 Submit Request to Gov Team"
+                                if st.button(submit_lbl, key="submit_gov_new"):
+                                    st.session_state["_pending_gov_submit"] = question_to_process
+                                    st.rerun()
 
                             except Exception as e:
                                 err_msg = str(e)
