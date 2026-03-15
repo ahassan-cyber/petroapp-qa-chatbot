@@ -260,7 +260,55 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
     line-height: 1.5;
 }
 
-/* ── Dark Mode Text Fix — force chat messages to always be readable ── */
+/* ══ FORCE LIGHT MODE — override dark mode for entire app ══════════════ */
+
+/* App background */
+.stApp, section.main, section.main > div {
+    background-color: #f0f4ff !important;
+    color: #1e293b !important;
+}
+
+/* All markdown text containers */
+[data-testid="stMarkdownContainer"],
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stMarkdownContainer"] strong,
+[data-testid="stMarkdownContainer"] em {
+    color: #1e293b !important;
+}
+
+/* Onboarding cards — always white background with dark text */
+.lang-card, .cat-card {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 2px solid #e2e8f0 !important;
+}
+.onboard-title { color: #1e3a8a !important; }
+.onboard-sub   { color: #64748b !important; }
+.cat-title     { color: #1e3a8a !important; }
+.cat-sub       { color: #64748b !important; }
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+}
+
+/* Input fields */
+input[type="text"], input[type="email"], textarea {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+}
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+}
+
+/* Chat messages — always readable */
 [data-testid="stChatMessageContent"] {
     background: #ffffff !important;
     color: #1e293b !important;
@@ -274,6 +322,24 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 [data-testid="stChatMessageContent"] h1,
 [data-testid="stChatMessageContent"] h2,
 [data-testid="stChatMessageContent"] h3 {
+    color: #1e293b !important;
+}
+
+/* Chat input box (bottom bar) */
+[data-testid="stChatInput"] textarea {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+}
+
+/* Block container */
+[data-testid="block-container"] {
+    background-color: transparent !important;
+}
+
+/* Sidebar always light */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] * {
+    background-color: #f0f5ff !important;
     color: #1e293b !important;
 }
 
