@@ -378,6 +378,7 @@ for key, val in {
     "chat_language":        None,
     "chat_category":        None,
     "search_all_cats":      False,
+    "show_sent_toast":      False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -1023,6 +1024,15 @@ if st.session_state.get("goto_inquiry_tab"):
 # TAB 1 — Chat  (Onboarding → Language → Category → Chat)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab1:
+    # Show sent confirmation toast if triggered
+    if st.session_state.get("show_sent_toast"):
+        _toast_lang = st.session_state.get("chat_language")
+        _toast_msg  = ("✅ تم إرسال طلبك بنجاح! سيتواصل معك فريق الحوكمة قريباً."
+                       if _toast_lang == "arabic"
+                       else "✅ Request sent successfully! The Governance team will follow up with you.")
+        st.toast(_toast_msg)
+        st.session_state.show_sent_toast = False
+
     if not all_chunks:
         st.info("📂 No documents loaded yet. Please contact the admin.")
     else:
@@ -1151,6 +1161,7 @@ with tab1:
                         if st.button(submit_lbl, key=f"submit_gov_{idx}"):
                             st.session_state.prefill_inquiry   = user_q
                             st.session_state.goto_inquiry_tab  = True
+                            st.session_state.show_sent_toast   = True
                             if SMTP_EMAIL and SMTP_PASSWORD:
                                 send_qa_report_for_unanswered(
                                     st.session_state.user_email,
@@ -1219,6 +1230,7 @@ with tab1:
                                     if st.button(submit_lbl, key="submit_gov_new"):
                                         st.session_state.prefill_inquiry  = question_to_process
                                         st.session_state.goto_inquiry_tab = True
+                                        st.session_state.show_sent_toast  = True
                                         if SMTP_EMAIL and SMTP_PASSWORD:
                                             send_qa_report_for_unanswered(
                                                 st.session_state.user_email,
