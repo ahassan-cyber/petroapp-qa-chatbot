@@ -233,6 +233,14 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 .source-file { font-weight:600; }
 .source-path { color:#64748b; font-size:11px; }
 
+/* ── BiDi fix: mixed Arabic/English paragraphs ───────────────────────── */
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] li,
+[data-testid="stChatMessageContent"] ul,
+[data-testid="stChatMessageContent"] ol {
+    unicode-bidi: plaintext;
+}
+
 /* ── Beta Badge ──────────────────────────────────────────────────────── */
 .beta-badge {
     background: linear-gradient(90deg, #f59e0b, #d97706);
@@ -876,7 +884,7 @@ def disclaimer_html(is_ar: bool) -> str:
     """Returns the AI disclaimer card HTML based on selected language."""
     if is_ar:
         return (
-            '<div class="disclaimer-card">'
+            '<div class="disclaimer-card" dir="rtl" style="text-align:right;unicode-bidi:embed;">'
             '⚠️ قد لا تكون إجابات الذكاء الاصطناعي دقيقة دائماً. '
             'في حالات عدم اليقين، يرجى مراجعة فريق الحوكمة والجودة مباشرةً.'
             '</div>'
@@ -1152,7 +1160,8 @@ with tab1:
                     # Source reference card + disclaimer
                     if msg["role"] == "assistant":
                         if msg.get("sources"):
-                            src_html = '<div class="source-card">📄 '
+                            _src_dir = ' dir="rtl" style="text-align:right"' if is_ar else ''
+                            src_html = f'<div class="source-card"{_src_dir}>📄 '
                             src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
                             for src, sf in msg["sources"]:
                                 src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
@@ -1216,7 +1225,8 @@ with tab1:
 
                                 # Show source card + disclaimer
                                 if sources:
-                                    src_html = '<div class="source-card">📄 '
+                                    _src_dir = ' dir="rtl" style="text-align:right"' if is_ar else ''
+                                    src_html = f'<div class="source-card"{_src_dir}>📄 '
                                     src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
                                     for src, sf in sources:
                                         src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
