@@ -125,11 +125,11 @@ try:
     API_KEY       = st.secrets["CLAUDE_API_KEY"]
     SMTP_EMAIL    = st.secrets["SMTP_EMAIL"]
     SMTP_PASSWORD = st.secrets["SMTP_PASSWORD"]
-    SMTP_SERVER   = st.secrets.get("SMTP_SERVER", "smtp.office365.com")
+    SMTP_SERVER   = st.secrets.get("SMTP_SERVER", "smtp.gmail.com")
     SMTP_PORT     = int(st.secrets.get("SMTP_PORT", 587))
 except Exception:
     API_KEY = SMTP_EMAIL = SMTP_PASSWORD = None
-    SMTP_SERVER = "smtp.office365.com"
+    SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT   = 587
 
 # ── PetroApp Logo — load from assets/logo.png ────────────────────────────────
@@ -389,29 +389,28 @@ def extract_text(file, filename: str = "") -> str:
             for para in doc.paragraphs:
                 if para.text.strip():
                     text += para.text + "\n"
-            # ── Tables — format each row as: Header: Value | Header: Value ──
+            # ── Tables — use XML identity to correctly handle merged cells ──
+            def _unique_cells(row):
+                """Return cell texts for unique (non-merged) cells only,
+                detected via XML element identity — not value comparison."""
+                seen_tc, result = set(), []
+                for cell in row.cells:
+                    tc_id = id(cell._tc)
+                    if tc_id not in seen_tc:
+                        seen_tc.add(tc_id)
+                        result.append(cell.text.strip().replace("\n", " "))
+                return result
+
             for table in doc.tables:
                 if not table.rows:
                     continue
-                # Build unique header list (Word repeats merged cell text)
-                raw_headers = [cell.text.strip() for cell in table.rows[0].cells]
-                seen_h, headers = [], []
-                for h in raw_headers:
-                    if h and h not in seen_h:
-                        seen_h.append(h)
-                        headers.append(h)
-                    else:
-                        headers.append("")   # duplicate / empty — skip in output
-
+                headers = _unique_cells(table.rows[0])
                 for row in table.rows[1:]:
-                    cells = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+                    values    = _unique_cells(row)
                     row_parts = []
-                    seen_vals = set()
-                    for h, v in zip(headers, cells):
-                        if not v or v in seen_vals:
-                            continue          # skip empty or repeated merged values
-                        seen_vals.add(v)
-                        row_parts.append(f"{h}: {v}" if h else v)
+                    for h, v in zip(headers, values):
+                        if v:   # skip truly empty cells
+                            row_parts.append(f"{h}: {v}" if h else v)
                     if row_parts:
                         text += " | ".join(row_parts) + "\n"
                 text += "\n"
