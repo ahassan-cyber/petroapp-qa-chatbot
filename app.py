@@ -233,6 +233,50 @@ section[data-testid="stSidebar"] { background:#f0f5ff; }
 .source-file { font-weight:600; }
 .source-path { color:#64748b; font-size:11px; }
 
+/* ── Beta Badge ──────────────────────────────────────────────────────── */
+.beta-badge {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+    color: white;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    vertical-align: middle;
+    margin-left: 8px;
+    text-transform: uppercase;
+}
+
+/* ── AI Disclaimer Card ──────────────────────────────────────────────── */
+.disclaimer-card {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #92400e;
+    line-height: 1.5;
+}
+
+/* ── Dark Mode Text Fix — force chat messages to always be readable ── */
+[data-testid="stChatMessageContent"] {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border-radius: 10px !important;
+}
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] span,
+[data-testid="stChatMessageContent"] li,
+[data-testid="stChatMessageContent"] strong,
+[data-testid="stChatMessageContent"] em,
+[data-testid="stChatMessageContent"] h1,
+[data-testid="stChatMessageContent"] h2,
+[data-testid="stChatMessageContent"] h3 {
+    color: #1e293b !important;
+}
+
 /* ── Option C: Chat Input Highlight ───────────────────────────────────── */
 [data-testid="stBottom"],
 section[data-testid="stBottom"],
@@ -782,6 +826,22 @@ def is_not_found_answer(answer: str) -> bool:
     low = answer.lower()
     return any(phrase.lower() in low for phrase in NOT_FOUND_PHRASES)
 
+def disclaimer_html(is_ar: bool) -> str:
+    """Returns the AI disclaimer card HTML based on selected language."""
+    if is_ar:
+        return (
+            '<div class="disclaimer-card">'
+            '⚠️ قد لا تكون إجابات الذكاء الاصطناعي دقيقة دائماً. '
+            'في حالات عدم اليقين، يرجى مراجعة فريق الحوكمة والجودة مباشرةً.'
+            '</div>'
+        )
+    return (
+        '<div class="disclaimer-card">'
+        '⚠️ AI responses may not always be fully accurate. '
+        'For critical decisions, please verify with the Governance &amp; QA team directly.'
+        '</div>'
+    )
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOGIN PAGE
@@ -887,7 +947,7 @@ st.markdown(
     f'<div class="petroapp-header">'
     f'<div class="header-logo">{LOGO_SM}</div>'
     f'<div class="header-title">'
-    f'<h1>QA &amp; Governance Chatbot</h1>'
+    f'<h1>QA &amp; Governance Chatbot <span class="beta-badge">BETA</span></h1>'
     f'<p>Welcome, {st.session_state.user_name} · {st.session_state.user_email}</p>'
     f'</div></div>',
     unsafe_allow_html=True
@@ -1018,14 +1078,16 @@ with tab1:
                 with st.chat_message(msg["role"]):
                     st.write(msg["content"])
 
-                    # Source reference card
-                    if msg["role"] == "assistant" and msg.get("sources"):
-                        src_html = '<div class="source-card">📄 '
-                        src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
-                        for src, sf in msg["sources"]:
-                            src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
-                        src_html += '</div>'
-                        st.markdown(src_html, unsafe_allow_html=True)
+                    # Source reference card + disclaimer
+                    if msg["role"] == "assistant":
+                        if msg.get("sources"):
+                            src_html = '<div class="source-card">📄 '
+                            src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
+                            for src, sf in msg["sources"]:
+                                src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
+                            src_html += '</div>'
+                            st.markdown(src_html, unsafe_allow_html=True)
+                        st.markdown(disclaimer_html(is_ar), unsafe_allow_html=True)
 
                     # Not-found actions
                     if msg["role"] == "assistant" and is_not_found_answer(msg["content"]):
@@ -1084,7 +1146,7 @@ with tab1:
                                         sources.append((c["source"], c["subfolder"]))
                                 sources = sources[:3]
 
-                                # Show source card
+                                # Show source card + disclaimer
                                 if sources:
                                     src_html = '<div class="source-card">📄 '
                                     src_html += ("<strong>المصادر:</strong> " if is_ar else "<strong>Sources:</strong> ")
@@ -1092,6 +1154,7 @@ with tab1:
                                         src_html += f'<span class="source-file">{src}</span> <span class="source-path">[{sf}]</span> &nbsp;'
                                     src_html += '</div>'
                                     st.markdown(src_html, unsafe_allow_html=True)
+                                st.markdown(disclaimer_html(is_ar), unsafe_allow_html=True)
 
                                 st.session_state.messages.append({
                                     "role": "assistant", "content": answer, "sources": sources
